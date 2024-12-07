@@ -14,7 +14,7 @@ main()
     consoleinit();
     printfinit();
     printf("\n");
-    //pci_init();
+    pci_init();
     printf("xv6 kernel is booting\n");
     printf("\n");
     kinit();         // physical page allocator
@@ -31,7 +31,7 @@ main()
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
     __sync_synchronize();
-    pci_init();
+    //pci_init();
     started = 1;
   } else {
     while(started == 0)

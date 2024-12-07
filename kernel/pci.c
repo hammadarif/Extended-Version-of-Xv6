@@ -1,19 +1,22 @@
 // pci.c - PCI support for RISC-V
-#include "types.h"
-#include "defs.h"
-#include "memlayout.h"
+#include "pci.h"
+//#include "defs.h"
 
+
+extern void printf(char *fmt, ...);
 // PCI configuration space base address (typical for RISC-V)
 #define PCI_CONFIG_BASE 0x30000000
 
 // Read a 32-bit value from PCI configuration space using MMIO
 static uint32 pci_mmio_read32(uint32 address) {
-    return *(volatile uint32 *)(uintptr_t)(PCI_CONFIG_BASE + address);
+    //return *(volatile uint32 *)(PCI_CONFIG_BASE + address);
+    return *(volatile uint32 *)((char *)PCI_CONFIG_BASE + address);
 }
 
 // Write a 32-bit value to PCI configuration space using MMIO
 static void pci_mmio_write32(uint32 address, uint32 value) {
-     *(volatile uint32 *)(uintptr_t)(PCI_CONFIG_BASE + address) = value;
+    //*(volatile uint32 *)(PCI_CONFIG_BASE + address) = value;
+    *(volatile uint32 *)((char *)PCI_CONFIG_BASE + address) = value;
 }
 
 // Read from PCI configuration space
