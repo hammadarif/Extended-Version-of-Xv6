@@ -49,6 +49,12 @@
 // must be a power of two.
 #define NUM 8
 
+// Networking Header (VirtIO spec, 5.1.6.4)
+#define VIRTIO_NET_HDR_F_NEEDS_CSUM  1 // Device needs checksum computation
+#define VIRTIO_NET_HDR_F_DATA_VALID  2 // Device indicates data is valid
+#define VIRTIO_NET_HDR_GSO_NONE      0 // No Generic Segmentation Offload (GSO)
+#define VIRTIO_NET_HDR_GSO_TCPV4     1 // TCPv4 segmentation offload
+
 // a single descriptor, from the spec.
 struct virtq_desc {
   uint64 addr;
@@ -93,4 +99,14 @@ struct virtio_blk_req {
   uint32 type; // VIRTIO_BLK_T_IN or ..._OUT
   uint32 reserved;
   uint64 sector;
+};
+
+// VirtIO networking packet header structure
+struct virtio_net_hdr {
+    uint8 flags;        // Flags (e.g., needs checksum computation)
+    uint8 gso_type;     // Type of GSO (Generic Segmentation Offload)
+    uint16 hdr_len;     // Header length (bytes)
+    uint16 gso_size;    // Maximum size of a GSO segment
+    uint16 csum_start;  // Start of the checksum computation
+    uint16 csum_offset; // Offset for the checksum field
 };

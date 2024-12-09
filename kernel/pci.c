@@ -1,7 +1,7 @@
 // pci.c - PCI support for RISC-V
 #include "pci.h"
 //#include "defs.h"
-
+#define VIRTIO_NET_MMIO_BASE 0x30000000
 
 extern void printf(char *fmt, ...);
 // PCI configuration space base address (typical for RISC-V)
@@ -47,6 +47,8 @@ int pci_find_device(uint16 vendor_id, uint16 device_id) {
 }
 
 // Initialize PCI subsystem (for testing)
+
+/*
 void pci_init() {
     printf("Initializing PCI...\n");
     int dev_id = pci_find_device(0x1AF4, 0x1000);  // Example: Look for VirtIO device
@@ -55,4 +57,18 @@ void pci_init() {
     } else {
         printf("No PCI device found.\n");
     }
+}
+*/
+void pci_init()
+{
+    printf("Initializing VirtIO Network Device at 0x%x\n", VIRTIO_NET_MMIO_BASE);
+    
+    /*uint16 vendor = pci_config_read32(0, 2, 0, 0) & 0xFFFF;
+    if (vendor == 0x1AF4) {
+    uint16 device = (pci_config_read32(0, 2, 0, 0) >> 16) & 0xFFFF;
+    if (device == 0x1000) {
+        printf("VirtIO Network Device found at bus 0, slot 2\n");
+    }
+    }*/
+
 }

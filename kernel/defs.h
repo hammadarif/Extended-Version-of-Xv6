@@ -16,6 +16,16 @@ uint32 pci_config_read32(uint8 bus, uint8 slot, uint8 func, uint8 offset);
 int pci_find_device(uint16 vendor_id, uint16 device_id);
 void pci_init(void);
 
+//virtio.c
+//static inline uint32 mmio_read(uint64 addr);
+//static inline void mmio_write(uint64 addr, uint32 val);
+void virtio_init();
+//static int alloc_desc();
+//static void free_desc(int idx);
+void virtio_send_packet(void *data, uint len);
+void virtio_receive_packet(void *buffer, uint buflen);
+
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
