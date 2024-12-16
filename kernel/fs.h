@@ -58,3 +58,6 @@ struct dirent {
   char name[DIRSIZ];
 };
 
+//devnet device no
+#define DEV_NET 5
+

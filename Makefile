@@ -1,5 +1,14 @@
 K=kernel
 U=user
+LWIP_SRCS := $(shell find lwip/src -name "*.c")
+LWIP_OBJS = \
+  lwip/core/init.o \
+  lwip/core/memp.o \
+  lwip/core/pbuf.o \
+  lwip/core/tcpip.o \
+  lwip/core/ipv4/icmp.o \
+  lwip/core/ipv4/ip4.o \
+  lwip/netif/ethernet.o\
 
 OBJS = \
   $K/entry.o \
@@ -29,9 +38,9 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  kernel/pci.o \
-  kernel/virtio.o
-
+  $K/virtio_net.o \
+  $K/test/virtio_net_test.o
+OBJS += $(LWIP_OBJS)
 #OBJS += kernel/pci.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
@@ -71,7 +80,8 @@ CFLAGS += -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin
 CFLAGS += -fno-builtin-free
 CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
-CFLAGS += -I.
+#CFLAGS += -I.
+CFLAGS += -I. -Ikernel -Ilwip/src/include -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
@@ -88,6 +98,10 @@ $K/kernel: $(OBJS) $K/kernel.ld $U/initcode
 	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel $(OBJS) 
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
+
+lwip/%.o: lwip/src/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $< -MMD -MF $(@:.o=.d)
 
 $U/initcode: $U/initcode.S
 	$(CC) $(CFLAGS) -march=rv64g -nostdinc -I. -Ikernel -c $U/initcode.S -o $U/initcode.o
@@ -143,6 +157,7 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_ping\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -154,8 +169,10 @@ clean:
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
-        $U/usys.S \
-	$(UPROGS)
+	$U/usys.S \
+	$(UPROGS) \
+	$(shell find lwip -type f -name "*.o") \
+	$(shell find lwip -type f -name "*.d")
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -171,12 +188,9 @@ QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nogr
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-#QEMUOPTS += -netdev user,id=net0
-#QEMUOPTS += -device virtio-net-pci,netdev=net0
-QEMUOPTS +=  -device virtio-net-device,netdev=net0
-QEMUOPTS += -netdev user,id=net0
-#QEMUOPTS += -d guest_errors
-#QEMUOPTS += -device help
+QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0 -netdev user,id=net0
+#QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1 -netdev user,id=net0 
+
 qemu: $K/kernel fs.img
 	$(QEMU) $(QEMUOPTS)
 

@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "virtio.h"
 
 uint64
 sys_exit(void)
@@ -90,4 +91,60 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+// System call to send a network packet
+uint64 sys_send_packet() {
+    uint64 data;
+    int len;
+
+    // Extract arguments
+    argaddr(0, &data);
+    argint(1, &len);
+
+    // Validate arguments
+    if (data == 0 || len <= 0) {
+        return -1; // Error
+    }
+
+    char buffer[PACKET_SIZE];
+    if (copyin(myproc()->pagetable, buffer, data, len) < 0) {
+        return -1; // Error during copyin
+    }
+
+    virtio_send_packet(buffer, len);
+    return 0; // Success
+}
+
+
+// System call to receive a network packet
+uint64 sys_recv_packet() {
+    uint64 data;
+    int buflen;
+
+    // Extract arguments
+    argaddr(0, &data);
+    argint(1, &buflen);
+
+    // Validate arguments
+    if (data == 0 || buflen <= 0) {
+        return -1; // Error
+    }
+
+    char buffer[PACKET_SIZE];
+    int received_len;
+
+    // Receive packet and get the received length
+    virtio_receive_packet(buffer, buflen, &received_len);
+
+    // Validate received length
+    if (received_len <= 0) {
+        return -1; // Error
+    }
+
+    // Copy received data back to user space
+    if (copyout(myproc()->pagetable, data, buffer, received_len) < 0) {
+        return -1; // Error during copyout
+    }
+
+    return received_len; // Return the length of the received packet
 }

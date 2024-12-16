@@ -1,3 +1,5 @@
+#ifndef VIRTIO_H
+#define VIRTIO_H
 //
 // virtio device definitions.
 // for both the mmio interface, and virtio descriptors.
@@ -6,6 +8,9 @@
 // the virtio spec:
 // https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.pdf
 //
+
+#include "spinlock.h"
+#include "memlayout.h"
 
 // virtio mmio control registers, mapped starting at 0x10001000.
 // from qemu virtio_mmio.h
@@ -29,6 +34,8 @@
 #define VIRTIO_MMIO_DRIVER_DESC_HIGH	0x094
 #define VIRTIO_MMIO_DEVICE_DESC_LOW	0x0a0 // physical address for used ring, write-only
 #define VIRTIO_MMIO_DEVICE_DESC_HIGH	0x0a4
+#define VIRTIO_MMIO_CONFIG              0x100 // configuration space
+#define PACKET_SIZE 1518
 
 // status register bits, from qemu virtio_config.h
 #define VIRTIO_CONFIG_S_ACKNOWLEDGE	1
@@ -47,13 +54,28 @@
 
 // this many virtio descriptors.
 // must be a power of two.
-#define NUM 8
+//#define NUM 8
 
 // Networking Header (VirtIO spec, 5.1.6.4)
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM  1 // Device needs checksum computation
 #define VIRTIO_NET_HDR_F_DATA_VALID  2 // Device indicates data is valid
 #define VIRTIO_NET_HDR_GSO_NONE      0 // No Generic Segmentation Offload (GSO)
 #define VIRTIO_NET_HDR_GSO_TCPV4     1 // TCPv4 segmentation offload
+
+// VirtIO networking-specific feature flags
+#define VIRTIO_NET_F_MAC        (1 << 5)  // Device has a MAC address
+#define VIRTIO_NET_F_STATUS     (1 << 16) // Link status is available
+#define VIRTIO_NET_F_CTRL_VQ    (1 << 17) // Control virtqueue
+#define VIRTIO_NET_F_CSUM (1 << 0) // Device handles checksum offloading
+
+
+
+
+#define NUM 32 // Number of descriptors, must be a power of two
+#define PACKET_SIZE 1518 // Maximum Ethernet frame size
+
+// Alignment requirements
+#define VIRTIO_ALIGNMENT        4096     // 4 KB alignment
 
 // a single descriptor, from the spec.
 struct virtq_desc {
@@ -110,3 +132,35 @@ struct virtio_net_hdr {
     uint16 csum_start;  // Start of the checksum computation
     uint16 csum_offset; // Offset for the checksum field
 };
+struct virtio_net_config { 
+  uint8 mac[6];                 // only valid if VIRTIO_NET_F_MAC is set
+  uint16 status;                // only exists if VIRTIO_NET_F_STATUS is set
+  uint16 max_virtqueue_pairs;   // only exists if VIRTIO_NET_F_MQ is set
+  uint16 mtu;                   // only exists if VIRTIO_NET_F_MTU is set
+};
+
+
+struct virtqueue {
+    struct virtq_desc *desc;     // Descriptor table for Virtqueue
+    struct virtq_avail *avail;  // Available ring for descriptors to device
+    struct virtq_used *used;    // Used ring for descriptors processed by device
+
+    char free[2 * NUM];         // Array to track free descriptors
+    uint16 used_idx;            // Tracks processed entries in the used ring
+    void *buf[2 * NUM];         // Buffer pool for descriptor memory
+};
+// MMIO helper declarations
+uint32 mmio_read(uint64 addr);
+void mmio_write(uint64 addr, uint32 val);
+
+// Expose VirtIO net structure for testing
+struct virtio_net {
+    struct virtqueue rx;         // Receive (RX) queue
+    struct virtqueue tx;         // Transmit (TX) queue
+    struct spinlock rx_lock;     // Lock for RX operations
+    struct spinlock tx_lock;     // Lock for TX operations
+};
+
+// External declaration for the global VirtIO-Net instance
+extern struct virtio_net net;
+#endif // VIRTIO_H

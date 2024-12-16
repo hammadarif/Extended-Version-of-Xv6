@@ -16,6 +16,8 @@ void kernelvec();
 
 extern int devintr();
 
+//extern void virtio_net_enable_interrupt();
+
 void
 trapinit(void)
 {
@@ -148,8 +150,10 @@ kerneltrap()
     // interrupt or trap from an unknown source
     printf("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
     panic("kerneltrap");
+     if ((sstatus & SSTATUS_SPP) == 0)
+        panic("kerneltrap: not from supervisor mode");
   }
-
+  
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0)
     yield();
@@ -158,6 +162,7 @@ kerneltrap()
   // so restore trap registers for use by kernelvec.S's sepc instruction.
   w_sepc(sepc);
   w_sstatus(sstatus);
+
 }
 
 void
@@ -196,6 +201,8 @@ devintr()
       uartintr();
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
+    } else if(irq == VIRTIO1_IRQ){
+      virtio_net_intr(); // Handle VirtIO-Net interrupt
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
     }
@@ -215,4 +222,5 @@ devintr()
     return 0;
   }
 }
+
 

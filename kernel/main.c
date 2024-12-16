@@ -29,7 +29,11 @@ main()
     iinit();         // inode table
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
-    virtio_init();
+    virtio_net_init(); // Initialize VirtIO-Net driver
+    lwip_init_network(); //Lwip
+    //run_virtio_net_tests();
+    
+    //virtio_net_enable_interrupt(); // Enable VirtIO-Net interrupts
     userinit();      // first user process
     __sync_synchronize();
     //pci_init();

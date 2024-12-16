@@ -1,0 +1,19 @@
+{
+    "files.associations": {
+        "virtio.h": "c",
+        "spinlock.h": "c",
+        "ethernet.h": "c",
+        "tcpip.h": "c",
+        "init.h": "c",
+        "file.h": "c",
+        "fs.h": "c",
+        "opt.h": "c",
+        "compare": "c",
+        "defs.h": "c",
+        "err.h": "c",
+        "netif.h": "c",
+        "sys_arch.h": "c",
+        "types.h": "c",
+        "memlayout.h": "c"
+    }
+}

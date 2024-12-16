@@ -41,3 +41,8 @@ void *memcpy(void *, const void *, uint);
 // umalloc.c
 void* malloc(uint);
 void free(void*);
+
+
+//Integration to use virtio_net systemcalls
+int send_packet(char *buffer, int len);
+int recv_packet(char *buffer, int len);

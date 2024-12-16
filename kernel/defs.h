@@ -1,3 +1,8 @@
+
+
+//#include "types.h"   // Includes uint64_t, pagetable_t, etc.
+
+
 struct buf;
 struct context;
 struct file;
@@ -8,23 +13,41 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct netif;
+
+typedef s8_t err_t; //using uchar instead of int8_t
 
 
+//For testing purpose setting up logs
+#define DEBUG 1 // Set to 0 to disable debug logs
+#define LOG(fmt, ...) if (DEBUG) printf(fmt, ##__VA_ARGS__)
 
-//pci.c
-uint32 pci_config_read32(uint8 bus, uint8 slot, uint8 func, uint8 offset);
-int pci_find_device(uint16 vendor_id, uint16 device_id);
-void pci_init(void);
+
 
 //virtio.c
-//static inline uint32 mmio_read(uint64 addr);
-//static inline void mmio_write(uint64 addr, uint32 val);
-void virtio_init();
-//static int alloc_desc();
-//static void free_desc(int idx);
+void virtio_net_init();               // Initialize the VirtIO network device
+//void virtio_net_enable_interrupt();  // Enable VirtIO-Net interrupts
+void virtio_net_intr();
 void virtio_send_packet(void *data, uint len);
-void virtio_receive_packet(void *buffer, uint buflen);
+void virtio_receive_packet(char *buffer, int buflen, int *received_len);
+uint64 sys_send_packet(void);
+uint64 sys_recv_packet(void);
+void run_virtio_net_tests();
+//char *alloc_buffer();
+void free_buffer(char *buffer);
+uint32 mmio_read(uint64 addr);
+void mmio_write(uint64 addr, uint32 val);
+void setup_receive_descriptor(int desc_idx);
+void lwip_init_network();
 
+//netdev.c
+int netdev_read(struct inode *ip, char *dst, int n);
+int netdev_write(struct inode *ip, char *src, int n);
+void dev_net_init();
+
+
+//ethernetif.c
+err_t ethernetif_init(struct netif *netif);
 
 // bio.c
 void            binit(void);
@@ -80,6 +103,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void *kalloc_aligned(int alignment);
+
 
 // log.c
 void            initlog(int, struct superblock*);
