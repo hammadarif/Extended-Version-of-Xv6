@@ -166,7 +166,7 @@ main(int argc, char *argv[])
     uint net_ino = ialloc(T_DEV);
 
     // Step 2) Create a directory entry in the root dir (rootino).
-    struct dirent de;
+    //struct dirent de;
     bzero(&de, sizeof(de));
     de.inum = xshort(net_ino);
     strncpy(de.name, "net", DIRSIZ); // the name "net"
