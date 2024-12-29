@@ -1,3 +1,6 @@
+#ifndef SPINLOCK_H
+#define SPINLOCK_H
+
 #pragma once
 // Mutual exclusion lock.
 struct spinlock {
@@ -8,3 +11,4 @@ struct spinlock {
   struct cpu *cpu;   // The cpu holding the lock.
 };
 
+#endif // SPINLOCK_H

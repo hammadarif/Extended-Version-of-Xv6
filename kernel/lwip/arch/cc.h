@@ -1,6 +1,6 @@
 #ifndef ARCH_CC_H
 #define ARCH_CC_H
-
+#include "types.h"
 // Prevent inclusion of unistd.h by redefining macros
 #define LWIP_NO_UNISTD_H 1
 
@@ -16,6 +16,11 @@ typedef unsigned int u32_t;
 // Error type
 typedef s8_t err_t;
 
+static inline uint64 r_mtime(void) {
+    uint64 time;
+    asm volatile("csrr %0, time" : "=r" (time));
+    return time;
+}
 
 // Forward declare printf
 int printf(char*, ...) __attribute__ ((format (printf, 1, 2)));

@@ -14,6 +14,7 @@ main()
     consoleinit();
     printfinit();
     printf("\n");
+    dev_net_init();
     //pci_init();
     printf("xv6 kernel is booting\n");
     printf("\n");

@@ -35,7 +35,7 @@
 #define VIRTIO_MMIO_DEVICE_DESC_LOW	0x0a0 // physical address for used ring, write-only
 #define VIRTIO_MMIO_DEVICE_DESC_HIGH	0x0a4
 #define VIRTIO_MMIO_CONFIG              0x100 // configuration space
-#define PACKET_SIZE 1518
+//#define PACKET_SIZE 1518
 
 // status register bits, from qemu virtio_config.h
 #define VIRTIO_CONFIG_S_ACKNOWLEDGE	1
@@ -68,11 +68,12 @@
 #define VIRTIO_NET_F_CTRL_VQ    (1 << 17) // Control virtqueue
 #define VIRTIO_NET_F_CSUM (1 << 0) // Device handles checksum offloading
 
+#define VIRTIO_NET_INTR_RX 0x1
 
 
 
 #define NUM 32 // Number of descriptors, must be a power of two
-#define PACKET_SIZE 1518 // Maximum Ethernet frame size
+#define PACKET_SIZE 2048 // Maximum Ethernet frame size
 
 // Alignment requirements
 #define VIRTIO_ALIGNMENT        4096     // 4 KB alignment

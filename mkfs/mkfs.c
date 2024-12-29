@@ -162,6 +162,29 @@ main(int argc, char *argv[])
     close(fd);
   }
 
+   // Step 1) Allocate an inode for the device (type = T_DEV).
+    uint net_ino = ialloc(T_DEV);
+
+    // Step 2) Create a directory entry in the root dir (rootino).
+    struct dirent de;
+    bzero(&de, sizeof(de));
+    de.inum = xshort(net_ino);
+    strncpy(de.name, "net", DIRSIZ); // the name "net"
+    iappend(rootino, &de, sizeof(de)); // add "net" entry to "/"
+
+    // Step 3) Set up the device inode with major/minor fields.
+    struct dinode ndin;
+    rinode(net_ino, &ndin);
+
+    ndin.type  = xshort(T_DEV);
+    ndin.major = xshort(3); // e.g., #define DEV_NET 3
+    ndin.minor = xshort(0);
+    ndin.size  = xint(0);
+
+    // Write the updated inode back
+    winode(net_ino, &ndin);
+
+
   // fix size of root inode dir
   rinode(rootino, &din);
   off = xint(din.size);

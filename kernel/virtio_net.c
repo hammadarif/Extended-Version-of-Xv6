@@ -1,157 +1,162 @@
 #include "types.h"
 #include "riscv.h"
 #include "defs.h"
-//#include "spinlock.h"
-//#include "memlayout.h"
 #include "virtio.h"
 #include "lwip/init.h"
 #include "lwip/tcpip.h"
 #include "netif/ethernet.h"
 
-
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
 
-struct virtio_net net;
+// Size of the actual packet data (not counting virtio_net_hdr).
+//#define PACKET_SIZE  2048
 
+// Number of Rx/Tx slots
+//#define NUM  8
+
+struct virtio_net net;
 struct netif lwip_netif;
 
-
-// Helper functions for MMIO register access
+/* ----------------------------------------------------------------------
+ *  Low-level "MMIO" helpers
+ * ---------------------------------------------------------------------- */
 uint32 mmio_read(uint64 addr) {
     return *(volatile uint32 *)(addr);
 }
-
 void mmio_write(uint64 addr, uint32 val) {
     *(volatile uint32 *)(addr) = val;
 }
 
-/* 
- * Allocates a free descriptor from the Virtqueue
- * Returns the descriptor index or -1 if no descriptors are available.
- */
-static int alloc_desc(struct virtqueue *q) {
+/* ----------------------------------------------------------------------
+ *  Descriptor allocation
+ * ---------------------------------------------------------------------- */
+static int
+alloc_desc(struct virtqueue *q)
+{
     for (int i = 0; i < 2 * NUM; i++) {
         if (q->free[i]) {
             q->free[i] = 0;
             return i;
         }
     }
-    return -1; // No free descriptor available
+    return -1;
 }
 
-
-/*
- * Frees a descriptor in the Virtqueue, marking it as available.
- */
-static void free_desc(struct virtqueue *q, int idx) {
-    if (q->free[idx]) 
-        panic("Descriptor already free");
+static void
+free_desc(struct virtqueue *q, int idx)
+{
+    if (q->free[idx])
+        panic("free_desc: already free");
     q->free[idx] = 1;
 }
 
-/* 
- * Initializes a Virtqueue.
- * - Allocates memory for descriptor tables, available/used rings.
- * - Sets up pointers for the queue in the device.
- * - Initializes the bookkeeping structures (free descriptors, buffer pool).
- */
-void init_virtqueue(struct virtqueue *q, int qidx) {
+/* ----------------------------------------------------------------------
+ *  Initialize a virtqueue
+ * ---------------------------------------------------------------------- */
+void
+init_virtqueue(struct virtqueue *q, int qidx)
+{
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_SEL, qidx);
 
     uint32 max = mmio_read(VIRTIO1 + VIRTIO_MMIO_QUEUE_NUM_MAX);
-    if (max < NUM) panic("Virtqueue size too small");
+    if (max < NUM)
+        panic("virtqueue too small");
 
-    // Allocate and clear memory for Virtqueue structures
+    // Allocate descriptor, avail ring, used ring
     q->desc = kalloc();
     q->avail = kalloc();
     q->used = kalloc();
 
     if (!q->desc || !q->avail || !q->used)
-        panic("Virtqueue allocation failed");
+        panic("virtqueue kalloc failed");
 
     memset(q->desc, 0, PGSIZE);
     memset(q->avail, 0, PGSIZE);
-    memset(q->used, 0, PGSIZE);
+    memset(q->used,  0, PGSIZE);
 
-    // Configure queue size and addresses
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_NUM, NUM);
-    mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_DESC_LOW, (uint64)q->desc);
+    mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_DESC_LOW,  (uint64)q->desc);
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_DESC_HIGH, (uint64)q->desc >> 32);
-    mmio_write(VIRTIO1 + VIRTIO_MMIO_DRIVER_DESC_LOW, (uint64)q->avail);
+    mmio_write(VIRTIO1 + VIRTIO_MMIO_DRIVER_DESC_LOW,  (uint64)q->avail);
     mmio_write(VIRTIO1 + VIRTIO_MMIO_DRIVER_DESC_HIGH, (uint64)q->avail >> 32);
-    mmio_write(VIRTIO1 + VIRTIO_MMIO_DEVICE_DESC_LOW, (uint64)q->used);
+    mmio_write(VIRTIO1 + VIRTIO_MMIO_DEVICE_DESC_LOW,  (uint64)q->used);
     mmio_write(VIRTIO1 + VIRTIO_MMIO_DEVICE_DESC_HIGH, (uint64)q->used >> 32);
 
-    // Mark the queue as ready
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_READY, 1);
 
-    // Initialize descriptor and buffer pool
+    // Mark all desc free, allocate buffers
     for (int i = 0; i < 2 * NUM; i++) {
         q->free[i] = 1;
-        q->buf[i] = kalloc();
-        if (!q->buf[i]) panic("Buffer allocation failed");
+        q->buf[i]  = kalloc();
+        if (!q->buf[i])
+            panic("virtqueue buf kalloc failed");
         memset(q->buf[i], 0, PGSIZE);
     }
 
     q->used_idx = 0;
 }
 
-/* 
- * Prepares RX descriptors and notifies the device.
- * - Each descriptor points to a buffer where the device writes incoming packets.
- */
-static void fill_rx(int i) {
-    struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)net.rx.buf[i];
+/* ----------------------------------------------------------------------
+ *  fill_rx: put a chain of 2 descriptors into the avail ring
+ *    desc[2*i]   -> virtio_net_hdr at start of buffer
+ *    desc[2*i+1] -> actual packet data following the header
+ * ---------------------------------------------------------------------- */
+static void
+fill_rx(int i)
+{
+    // We'll use the i-th buffer in net.rx.buf[i] to hold:
+    //  [virtio_net_hdr][packet data...]
+    void *buf = net.rx.buf[i];
 
-    // Configure RX descriptor chain
-    net.rx.desc[2 * i].addr = (uint64)hdr;
-    net.rx.desc[2 * i].len = sizeof(struct virtio_net_hdr);
-    net.rx.desc[2 * i].flags = VRING_DESC_F_WRITE | VRING_DESC_F_NEXT;
-    net.rx.desc[2 * i].next = 2 * i + 1;
+    // desc[2*i]: net header
+    net.rx.desc[2*i].addr  = (uint64) buf;
+    net.rx.desc[2*i].len   = sizeof(struct virtio_net_hdr);
+    net.rx.desc[2*i].flags = VRING_DESC_F_WRITE | VRING_DESC_F_NEXT;
+    net.rx.desc[2*i].next  = 2*i + 1;
 
-    net.rx.desc[2 * i + 1].addr = (uint64)net.rx.buf[i];
-    net.rx.desc[2 * i + 1].len = PACKET_SIZE;
-    net.rx.desc[2 * i + 1].flags = VRING_DESC_F_WRITE;
-    net.rx.desc[2 * i + 1].next = 0;
+    // desc[2*i+1]: remainder for actual packet data
+    net.rx.desc[2*i+1].addr  = (uint64)((char*)buf + sizeof(struct virtio_net_hdr));
+    net.rx.desc[2*i+1].len   = PACKET_SIZE - sizeof(struct virtio_net_hdr);
+    net.rx.desc[2*i+1].flags = VRING_DESC_F_WRITE;
+    net.rx.desc[2*i+1].next  = 0;
 
-    // Add to available ring
-    net.rx.avail->ring[net.rx.avail->idx % (2 * NUM)] = 2 * i;
+    // Add descriptor chain index (2*i) to the avail ring
+    net.rx.avail->ring[ net.rx.avail->idx % NUM ] = 2*i;
     __sync_synchronize();
     net.rx.avail->idx++;
 
-    // Notify device
+    // Notify the device (queue 0 for Rx)
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_NOTIFY, 0);
 }
 
-void cleanup_rx_descriptor(struct virtqueue *q, int idx) {
-    free_desc(q, idx);
-}
-
-/* 
- * VirtIO-Net initialization function.
- * - Verifies device properties.
- * - Negotiates features and initializes RX/TX queues.
- */
-void virtio_net_init() {
+/* ----------------------------------------------------------------------
+ *  virtio_net_init
+ * ---------------------------------------------------------------------- */
+void
+virtio_net_init()
+{
     uint32 status = 0;
 
     initlock(&net.rx_lock, "virtio_net_rx");
     initlock(&net.tx_lock, "virtio_net_tx");
 
+    // Check virtio version
     if (mmio_read(VIRTIO1 + VIRTIO_MMIO_MAGIC_VALUE) != 0x74726976 ||
         mmio_read(VIRTIO1 + VIRTIO_MMIO_VERSION) != 2 ||
-        mmio_read(VIRTIO1 + VIRTIO_MMIO_DEVICE_ID) != 1)
-        panic("Not a VirtIO network device");
+        mmio_read(VIRTIO1 + VIRTIO_MMIO_DEVICE_ID) != 1) {
+        panic("not a virtio net device");
+    }
 
+    // Reset device
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, 0);
-
     status |= VIRTIO_CONFIG_S_ACKNOWLEDGE;
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
-
     status |= VIRTIO_CONFIG_S_DRIVER;
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
 
+    // Feature negotiation
     uint32 features = mmio_read(VIRTIO1 + VIRTIO_MMIO_DEVICE_FEATURES);
+    // e.g. disable csum offload
     features &= ~(1 << VIRTIO_NET_F_CSUM);
     mmio_write(VIRTIO1 + VIRTIO_MMIO_DRIVER_FEATURES, features);
 
@@ -159,131 +164,180 @@ void virtio_net_init() {
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
 
     if (!(mmio_read(VIRTIO1 + VIRTIO_MMIO_STATUS) & VIRTIO_CONFIG_S_FEATURES_OK))
-        panic("Feature negotiation failed");
+        panic("virtio net: features ok fail");
 
-    // Initialize RX and TX queues
+    // init queues
     init_virtqueue(&net.rx, 0);
     init_virtqueue(&net.tx, 1);
 
-    // Fill RX queue
-    for (int i = 0; i < NUM; i++)
+    // fill Rx queue with descriptors
+    for (int i = 0; i < NUM; i++) {
         fill_rx(i);
+    }
 
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
 }
 
-/* 
- * Sends a packet by adding it to the TX queue.
- */
-void virtio_send_packet(void *data, uint len) {
+/* ----------------------------------------------------------------------
+ *  TX: send a packet
+ * ---------------------------------------------------------------------- */
+void
+virtio_send_packet(void *data, uint len)
+{
     acquire(&net.tx_lock);
 
-    if (net.tx.avail->idx - net.tx.used_idx == NUM)
-        panic("TX queue full");
+    // If queue is "full"
+    if (net.tx.avail->idx - net.tx.used_idx == NUM) {
+        panic("virtio_send_packet: tx queue full");
+    }
 
     int desc_idx = alloc_desc(&net.tx);
-    void *buf = net.tx.buf[desc_idx];
+    void *buf    = net.tx.buf[desc_idx];
 
     memmove(buf, data, len);
 
-    net.tx.desc[desc_idx].addr = (uint64)buf;
-    net.tx.desc[desc_idx].len = len;
+    net.tx.desc[desc_idx].addr  = (uint64)buf;
+    net.tx.desc[desc_idx].len   = len;
     net.tx.desc[desc_idx].flags = 0;
-    net.tx.desc[desc_idx].next = 0;
+    net.tx.desc[desc_idx].next  = 0;
 
-    net.tx.avail->ring[net.tx.avail->idx % NUM] = desc_idx;
+    net.tx.avail->ring[ net.tx.avail->idx % NUM ] = desc_idx;
     __sync_synchronize();
     net.tx.avail->idx++;
 
+    // Notify device that there's a TX packet
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_NOTIFY, 1);
 
     release(&net.tx_lock);
 }
 
-/* 
- * Processes received packets from the RX queue.
- */
-void virtio_receive_packet(char *buffer, int buflen, int *received_len) {
+/* ----------------------------------------------------------------------
+ *  RX: retrieve one packet
+ *  This version copies the *packet data* (minus virtio_net_hdr)
+ *  into 'buffer'. *received_len is the packet's payload length.
+ * ---------------------------------------------------------------------- */
+void
+virtio_receive_packet(char *buffer, int buflen, int *received_len)
+{
     acquire(&net.rx_lock);
 
-    // Ensure there are packets to process
+    // Check if any used ring entries are available
     if (net.rx.used->idx == net.rx.used_idx) {
-        *received_len = 0; // No packets available
+        // No packets available
+        *received_len = 0;
         release(&net.rx_lock);
         return;
     }
 
-    // Process the RX descriptor
-    int desc_idx = net.rx.used->ring[net.rx.used_idx % NUM].id; // Descriptor ID
-    uint len = net.rx.used->ring[net.rx.used_idx % NUM].len;    // Length of received data
+    // Which ring entry?
+    int used_i    = net.rx.used_idx % NUM;
+    int desc_idx  = net.rx.used->ring[used_i].id;  // e.g. 2*i
+    uint len      = net.rx.used->ring[used_i].len; // total length device wrote
 
-    // Check if the received data fits in the provided buffer
-    if (len > buflen) {
-        *received_len = -1; // Indicate error (packet too large)
+    // The device wrote 'len' bytes across our chain [virtio_net_hdr + data].
+    // The net header is in the first sizeof(...) bytes, data follows.
+
+    int i = desc_idx / 2; // which buffer slot
+    char *buf = (char*) net.rx.buf[i];
+    // skip the net header
+    char *pkt_data = buf + sizeof(struct virtio_net_hdr);
+
+    // The payload length is (len - sizeof(struct virtio_net_hdr)), if len is bigger.
+    // But device might set 'len' to exactly how many bytes it wrote (including net hdr).
+    int payload_len = (len > sizeof(struct virtio_net_hdr))
+                    ? (len - sizeof(struct virtio_net_hdr)) : 0;
+
+    if (payload_len > buflen) {
+        // Packet doesn't fit in caller's buffer
+        *received_len = -1;
         release(&net.rx_lock);
         return;
     }
 
-    // Copy data from the VirtIO buffer to the user-provided buffer
-    memmove(buffer, net.rx.buf[desc_idx], len);
+    // Copy only the actual packet data to user buffer
+    memmove(buffer, pkt_data, payload_len);
+    *received_len = payload_len;
 
-    // Update received length
-    *received_len = len;
+    // Now re-post this buffer to the Rx queue for future packets
+    fill_rx(i);
 
-    // Refill the RX descriptor for future use
-    fill_rx(desc_idx / 2);
-
-    // Increment used index
+    // Move forward in the used ring
     net.rx.used_idx++;
 
     release(&net.rx_lock);
 }
-/* 
- * Handles interrupts for the VirtIO-Net device.
- */
-void virtio_net_intr() {
+
+/* ----------------------------------------------------------------------
+ *  virtio_net_intr: handle interrupts
+ * ---------------------------------------------------------------------- */
+void
+virtio_net_intr()
+{
     acquire(&net.rx_lock);
 
-    if (net.rx.used->idx > net.rx.used_idx) {
-        // Process RX interrupts
-        wakeup(&net.rx);
+    // Read the interrupt status
+    uint32 irq_status = mmio_read(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_STATUS);
+
+    // Check if the RX interrupt is triggered
+    if (!(irq_status & VIRTIO_NET_INTR_RX)) {
+        // If no RX interrupt, skip RX processing
+        release(&net.rx_lock);
+        return;
     }
 
-    if (net.tx.used->idx > net.tx.used_idx) {
-        // Process TX interrupts
+    // If we have new used descriptors on RX side
+    if (net.rx.used->idx > net.rx.used_idx) {
+        // Typically we might wake up a sleep() or net thread
+        wakeup(&net.rx); // or some other logic
+    }
+    // ----- TX side -----
+    // Instead of incrementing net.tx.used_idx by 1,
+    // loop through all newly completed descriptors:
+    while (net.tx.used->idx > net.tx.used_idx) {
+        int used_i = net.tx.used_idx % NUM;
+        int desc_id = net.tx.used->ring[used_i].id;
+
+        // Free the TX descriptor
+        free_desc(&net.tx, desc_id);
+
         net.tx.used_idx++;
     }
 
-    mmio_write(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_ACK,
-               mmio_read(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_STATUS));
+    // Acknowledge the interrupt
+    //uint32 irq_status = mmio_read(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_STATUS);
+    mmio_write(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_ACK, irq_status);
 
     release(&net.rx_lock);
 }
 
-//lwip integration to virtio_net
-/*Function to init lwip basic functions*/
+/* ----------------------------------------------------------------------
+ *  lwIP integration stubs (unchanged)
+ * ---------------------------------------------------------------------- */
 void lwip_init_network() {
-    lwip_init(); // Initialize the lwIP stack
-
-    // IP address configuration
+    lwip_init();
     ip4_addr_t ipaddr, netmask, gw;
-    IP4_ADDR(&ipaddr, 192, 168, 1, 2);    // Set static IP (xv6 machine's IP)
-    IP4_ADDR(&netmask, 255, 255, 255, 0); // Set subnet mask
-    IP4_ADDR(&gw, 192, 168, 1, 1);        // Set gateway (e.g., router IP)
+    // Make the guest IP 10.0.2.15 (arbitrary .15)
+    IP4_ADDR(&ipaddr, 10, 0, 2, 15);
+    IP4_ADDR(&netmask, 255, 255, 255, 0);
+    // QEMU's user-mode NAT gateway
+    IP4_ADDR(&gw, 10, 0, 2, 2);
 
-    // Add the network interface to lwIP
-    netif_add(&lwip_netif, &ipaddr, &netmask, &gw, NULL, ethernetif_init, tcpip_input);
-    netif_set_default(&lwip_netif); // Set as the default network interface
-    netif_set_up(&lwip_netif);      // Bring up the network interface
+    netif_add(&lwip_netif, &ipaddr, &netmask, &gw,
+              NULL, ethernetif_init, tcpip_input);
+    netif_set_default(&lwip_netif);
+    netif_set_up(&lwip_netif);
 }
 
-static void virtio_lwip_input(struct pbuf *p) __attribute__((unused));
+/*  Example handler to pass a pbuf to lwIP (not fully integrated):
 static void virtio_lwip_input(struct pbuf *p) {
-    if (p != NULL) {
-        if (lwip_netif.input(p, &lwip_netif) != ERR_OK) {
-            printf("ERROR: lwIP failed to process the packet.\n");
-            pbuf_free(p);
-        }
+   struct pbuf *p = pbuf_alloc(PBUF_RAW, *received_len, PBUF_POOL);
+    if (p) {
+    memcpy(p->payload, buffer, *received_len);
+    if (lwip_netif.input(p, &lwip_netif) != ERR_OK) {
+        printf("ERROR: lwIP failed to process the packet.\n");
+        pbuf_free(p);
+    }
     }
 }
+*/

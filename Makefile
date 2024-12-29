@@ -2,13 +2,35 @@ K=kernel
 U=user
 LWIP_SRCS := $(shell find lwip/src -name "*.c")
 LWIP_OBJS = \
-  lwip/core/init.o \
-  lwip/core/memp.o \
-  lwip/core/pbuf.o \
-  lwip/core/tcpip.o \
-  lwip/core/ipv4/icmp.o \
-  lwip/core/ipv4/ip4.o \
-  lwip/netif/ethernet.o\
+    lwip/core/mem.o \
+    lwip/core/memp.o \
+    lwip/core/stats.o \
+    lwip/core/init.o \
+    lwip/core/pbuf.o \
+    lwip/core/inet_chksum.o \
+    lwip/core/tcp.o \
+    lwip/core/tcp_in.o \
+    lwip/core/tcp_out.o \
+    lwip/core/udp.o \
+    lwip/core/ipv4/icmp.o \
+    lwip/netif/ethernet.o \
+    lwip/netif/ethernetif.o \
+    lwip/core/ipv4/etharp.o \
+    lwip/core/ipv4/ip4.o \
+    lwip/core/ipv4/ip4_frag.o \
+    lwip/api/tcpip.o \
+	lwip/api/err.o \
+    lwip/core/sys.o \
+	lwip/core/timeouts.o \
+	lwip/core/ip.o \
+	lwip/core/netif.o \
+	lwip/core/def.o \
+	lwip/core/ipv4/ip4_addr.o
+
+
+
+	
+
 
 OBJS = \
   $K/entry.o \
@@ -39,7 +61,10 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o \
   $K/virtio_net.o \
-  $K/test/virtio_net_test.o
+  $K/test/virtio_net_test.o \
+  $K/lwip/arch/sys_arch.o \
+  $K/ethernetif.o \
+  $K/netdev.o
 OBJS += $(LWIP_OBJS)
 #OBJS += kernel/pci.o
 
@@ -71,6 +96,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 
 CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -MD
+CFLAGS += -Wno-unused-but-set-variable
 CFLAGS += -mcmodel=medany
 # CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-common -nostdlib
@@ -81,7 +107,7 @@ CFLAGS += -fno-builtin-free
 CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 #CFLAGS += -I.
-CFLAGS += -I. -Ikernel -Ilwip/src/include -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
+CFLAGS += -I. -Ikernel -Ilwip/src/include -Ilwip/src/include/lwip -Ilwip/src/include/netif -Ilwip/src/api -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
