@@ -93,58 +93,58 @@ sys_uptime(void)
   return xticks;
 }
 // System call to send a network packet
-uint64 sys_send_packet() {
-    uint64 data;
-    int len;
+/*
+uint64
+sys_netdev_open(void) {
+    uint64 fd;
+    int mode;
 
     // Extract arguments
-    argaddr(0, &data);
-    argint(1, &len);
+    argaddr(0, &fd);
+    argint(1, &mode);
 
-    // Validate arguments
-    if (data == 0 || len <= 0) {
-        return -1; // Error
-    }
 
-    char buffer[PACKET_SIZE];
-    if (copyin(myproc()->pagetable, buffer, data, len) < 0) {
-        return -1; // Error during copyin
-    }
-
-    virtio_send_packet(buffer, len);
-    return 0; // Success
+   return netdev_open(fd, mode);
 }
 
 
 // System call to receive a network packet
-uint64 sys_recv_packet() {
-    uint64 data;
-    int buflen;
+uint64
+sys_netdev_close(void) {
+    int fd ;
 
     // Extract arguments
-    argaddr(0, &data);
-    argint(1, &buflen);
-
-    // Validate arguments
-    if (data == 0 || buflen <= 0) {
-        return -1; // Error
-    }
-
-    char buffer[PACKET_SIZE];
-    int received_len;
-
-    // Receive packet and get the received length
-    virtio_receive_packet(buffer, buflen, &received_len);
-
-    // Validate received length
-    if (received_len <= 0) {
-        return -1; // Error
-    }
-
-    // Copy received data back to user space
-    if (copyout(myproc()->pagetable, data, buffer, received_len) < 0) {
-        return -1; // Error during copyout
-    }
-
-    return received_len; // Return the length of the received packet
+    argint(0, &fd);
+    
+    netdev_close(fd);
+    return 0; // Return the length of the received packet
 }
+*/
+uint64
+sys_netdev_read(void) {
+    int fd, n;
+    uint64 dst;
+
+    // Extract arguments
+    argint(0, &fd);
+    argaddr(1, &dst);
+    argint(2, &n);
+
+    // Call kernel function
+    return netdev_read(fd, dst, n);
+}
+
+uint64
+sys_netdev_write(void) {
+    int fd, n;
+    uint64 src;
+
+    // Extract arguments
+    argint(0, &fd);
+    argaddr(1, &src);
+    argint(2, &n);
+
+    // Call kernel function
+    return netdev_write(fd, src, n);
+}
+

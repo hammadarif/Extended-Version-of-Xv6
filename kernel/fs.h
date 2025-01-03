@@ -59,5 +59,5 @@ struct dirent {
 };
 
 //devnet device no
-#define DEV_NET 5
+#define DEV_NET 3
 

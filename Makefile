@@ -214,7 +214,10 @@ QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nogr
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0 -netdev user,id=net0
+#QEMUOPTS += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
+QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0
+#QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0 -netdev user,id=net0
+QEMUOPTS += -netdev user,id=net0,hostfwd=tcp::2222-:22
 #QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1 -netdev user,id=net0 
 
 qemu: $K/kernel fs.img

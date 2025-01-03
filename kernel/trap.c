@@ -68,6 +68,7 @@ usertrap(void)
 
     syscall();
   } else if((which_dev = devintr()) != 0){
+    printf("device Trap occur \n");
     // ok
   } else {
     printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
@@ -202,6 +203,7 @@ devintr()
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
     } else if(irq == VIRTIO1_IRQ){
+      printf("Virtio Interrupt \n");
       virtio_net_intr(); // Handle VirtIO-Net interrupt
     } else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);

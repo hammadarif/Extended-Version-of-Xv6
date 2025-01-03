@@ -70,10 +70,11 @@
 
 #define VIRTIO_NET_INTR_RX 0x1
 
+#define MAX_NET_DEVICES 8        // Maximum number of network devices
 
 
-#define NUM 32 // Number of descriptors, must be a power of two
-#define PACKET_SIZE 2048 // Maximum Ethernet frame size
+#define NUM 8 // Number of descriptors, must be a power of two
+#define PACKET_SIZE 1500 // Maximum Ethernet frame size
 
 // Alignment requirements
 #define VIRTIO_ALIGNMENT        4096     // 4 KB alignment
@@ -165,3 +166,4 @@ struct virtio_net {
 // External declaration for the global VirtIO-Net instance
 extern struct virtio_net net;
 #endif // VIRTIO_H
+void init_virtqueue(struct virtqueue *q, int qidx);

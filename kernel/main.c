@@ -13,8 +13,7 @@ main()
   if(cpuid() == 0){
     consoleinit();
     printfinit();
-    printf("\n");
-    dev_net_init();
+    printf("\n"); 
     //pci_init();
     printf("xv6 kernel is booting\n");
     printf("\n");
@@ -32,6 +31,7 @@ main()
     virtio_disk_init(); // emulated hard disk
     virtio_net_init(); // Initialize VirtIO-Net driver
     lwip_init_network(); //Lwip
+    init_netdev();
     //run_virtio_net_tests();
     
     //virtio_net_enable_interrupt(); // Enable VirtIO-Net interrupts

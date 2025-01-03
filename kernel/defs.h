@@ -25,10 +25,11 @@ typedef s8_t err_t; //using uchar instead of int8_t
 
 
 //virtio.c
+
 void virtio_net_init();               // Initialize the VirtIO network device
 //void virtio_net_enable_interrupt();  // Enable VirtIO-Net interrupts
 void virtio_net_intr();
-void virtio_send_packet(void *data, uint len);
+int virtio_send_packet(void *data, uint len);
 void virtio_receive_packet(char *buffer, int buflen, int *received_len);
 uint64 sys_send_packet(void);
 uint64 sys_recv_packet(void);
@@ -41,9 +42,11 @@ void setup_receive_descriptor(int desc_idx);
 void lwip_init_network();
 
 //netdev.c
-int netdev_read(struct inode *ip, char *dst, int n);
-int netdev_write(struct inode *ip, char *src, int n);
-void dev_net_init();
+//int netdev_open(int fd, int mode);
+//void netdev_close(int fd);
+int netdev_read(int fd, uint64 dst, int n);
+int netdev_write(int fd, uint64 src, int n);
+void init_netdev();
 
 
 //ethernetif.c

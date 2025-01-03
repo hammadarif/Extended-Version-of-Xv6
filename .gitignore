@@ -22,6 +22,7 @@ obj/
 #Ignore other files
 _*
 *.out
+*_OLD.c
 
 
 # Ignore other system-specific files (e.g., Mac OS X, Windows, etc.)

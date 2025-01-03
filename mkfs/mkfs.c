@@ -33,6 +33,7 @@ uint freeinode = 1;
 uint freeblock;
 
 
+
 void balloc(int);
 void wsect(uint, void*);
 void winode(uint, struct dinode*);
@@ -41,7 +42,7 @@ void rsect(uint sec, void *buf);
 uint ialloc(ushort type);
 void iappend(uint inum, void *p, int n);
 void die(const char *);
-
+void create_net_device(uint rootino);
 // convert to riscv byte order
 ushort
 xshort(ushort x)
@@ -162,8 +163,11 @@ main(int argc, char *argv[])
     close(fd);
   }
 
-   // Step 1) Allocate an inode for the device (type = T_DEV).
-    uint net_ino = ialloc(T_DEV);
+
+    create_net_device(rootino);
+   /* 
+   // Step 1) Allocate an inode for the device (type = T_DEVICE).
+    uint net_ino = ialloc(T_DEVICE);
 
     // Step 2) Create a directory entry in the root dir (rootino).
     //struct dirent de;
@@ -176,7 +180,7 @@ main(int argc, char *argv[])
     struct dinode ndin;
     rinode(net_ino, &ndin);
 
-    ndin.type  = xshort(T_DEV);
+    ndin.type  = xshort(T_DEVICE);
     ndin.major = xshort(3); // e.g., #define DEV_NET 3
     ndin.minor = xshort(0);
     ndin.size  = xint(0);
@@ -185,6 +189,7 @@ main(int argc, char *argv[])
     winode(net_ino, &ndin);
 
 
+  */
   // fix size of root inode dir
   rinode(rootino, &din);
   off = xint(din.size);
@@ -323,4 +328,47 @@ die(const char *s)
 {
   perror(s);
   exit(1);
+}
+
+void create_net_device(uint rootino) {
+    struct dirent de;
+    uint dev_ino, net_ino;
+
+    // Step 1: Check if /dev exists; create it if necessary
+        dev_ino = ialloc(T_DIR); // Allocate an inode for the /dev directory
+        bzero(&de, sizeof(de));
+        de.inum = xshort(dev_ino);
+        strncpy(de.name, "dev", DIRSIZ); // Name it "dev"
+        iappend(rootino, &de, sizeof(de)); // Add "/dev" to the root directory
+
+        // Add "." and ".." entries for /dev
+        bzero(&de, sizeof(de));
+        de.inum = xshort(dev_ino);
+        strncpy(de.name, ".", DIRSIZ); // Current directory
+        iappend(dev_ino, &de, sizeof(de));
+
+        bzero(&de, sizeof(de));
+        de.inum = xshort(rootino);
+        strncpy(de.name, "..", DIRSIZ); // Parent directory
+        iappend(dev_ino, &de, sizeof(de));
+ 
+    // Step 2: Allocate an inode for the /dev/net device
+    net_ino = ialloc(T_DEVICE);
+
+    // Step 3: Add the "net" entry to the /dev directory
+    bzero(&de, sizeof(de));
+    de.inum = xshort(net_ino);
+    strncpy(de.name, "net", DIRSIZ); // Set the name to "net"
+    iappend(dev_ino, &de, sizeof(de)); // Add "net" entry to /dev
+
+    // Step 4: Set up the inode for the net device
+    struct dinode ndin;
+    rinode(net_ino, &ndin); // Read the inode
+    ndin.type = xshort(T_DEVICE);
+    ndin.major = xshort(3); // Major number for the network device (e.g., DEV_NET)
+    ndin.minor = xshort(0); // Minor number for this instance
+    ndin.size = xint(0);    // Device files typically have size 0
+    winode(net_ino, &ndin); // Write the updated inode back to disk
+
+    printf("/dev/net device successfully created\n");
 }

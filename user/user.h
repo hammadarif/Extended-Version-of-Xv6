@@ -44,6 +44,8 @@ void* malloc(uint);
 void free(void*);
 
 
-//Integration to use virtio_net systemcalls
-int send_packet(char *buffer, int len);
-int recv_packet(char *buffer, int len);
+//Integration to use netdev systemcalls
+//int netdev_open(int fd, int mode);
+//void netdev_close(int fd);
+int netdev_read(int fd, uint64 dst, int n);
+int netdev_write(int fd, uint64 src, int n);

@@ -31,8 +31,10 @@
 #define LWIP_DEBUG              1       // Enable lwIP debug options
 #define ICMP_DEBUG              LWIP_DBG_ON
 #define ETHARP_DEBUG            LWIP_DBG_ON
+#define ETHARP_DEBUG LWIP_DBG_ON
 
 #define LWIP_PROVIDE_ERRNO 1
+
 
 
 #endif /* LWIPOPTS_H */
