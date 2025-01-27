@@ -241,22 +241,99 @@ bad:
   end_op();
   return -1;
 }
+static struct inode*
+create(char *path, short type, short major, short minor)
+{
+    struct inode *ip, *dp;
+    char name[DIRSIZ];
+    //printf("[CREATE] Start\n");
 
+    // Find the parent directory of the file being created
+    if ((dp = nameiparent(path, name)) == 0) {
+        //printf("[CREATE] Failed to find parent directory\n");
+        return 0;
+    }
+
+    ilock(dp);
+    //printf("[CREATE] Before Directory Lookup\n");
+
+    // Look up the file in the directory, but do not resolve symlinks
+    if ((ip = dirlookup(dp, name, 0)) != 0) {
+        ilock(ip);
+        //printf("[CREATE] File already exists\n");
+
+        // Allow re-use for regular files or symlinks
+        if (type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE || ip->type == T_SYMLINK)) {
+            iunlockput(dp);
+            return ip;  // Return the existing inode
+        }
+
+        // File exists but is incompatible
+        iunlockput(ip);
+        iunlockput(dp);
+        return 0;
+    }
+
+    // Allocate a new inode
+    if ((ip = ialloc(dp->dev, type)) == 0) {
+        //printf("[CREATE] Failed to allocate inode\n");
+        iunlockput(dp);
+        return 0;
+    }
+
+    ilock(ip);
+    ip->major = major;
+    ip->minor = minor;
+    ip->nlink = 1;
+    iupdate(ip);
+
+    // Handle directories: add "." and ".." entries
+    if (type == T_DIR) {
+        if (dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0) {
+            //printf("[CREATE] Failed to create . or .. entries\n");
+            goto fail;
+        }
+    }
+
+    // Link the new file to its parent directory
+    if (dirlink(dp, name, ip->inum) < 0) {
+        //printf("[CREATE] Failed to link new file to parent directory\n");
+        goto fail;
+    }
+
+    // Update parent directory for directories
+    if (type == T_DIR) {
+        dp->nlink++;
+        iupdate(dp);
+    }
+    //printf("[CREATE] Before lock release %p \n", dp);
+    iunlockput(dp);
+    //printf("[CREATE] File created successfully\n");
+    return ip;
+
+fail:
+    ip->nlink = 0;
+    iupdate(ip);
+    iunlockput(ip);
+    iunlockput(dp);
+    return 0;
+}
+/*
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
-
+  printf("[CREATE] Start\n");
   if((dp = nameiparent(path, name)) == 0)
     return 0;
 
   ilock(dp);
-
+  printf("[CREATE] Before Directory Lookup\n");
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE || ip->type == T_SYMLINK))
       return ip;
     iunlockput(ip);
     return 0;
@@ -300,7 +377,7 @@ create(char *path, short type, short major, short minor)
   iunlockput(dp);
   return 0;
 }
-
+*/
 uint64
 sys_open(void)
 {
@@ -369,7 +446,6 @@ sys_open(void)
 
   return fd;
 }
-
 uint64
 sys_mkdir(void)
 {
@@ -503,3 +579,74 @@ sys_pipe(void)
   }
   return 0;
 }
+uint64
+create_symlink(const char *target, const char *link) {
+    struct inode *ip;
+    //printf("[CREATESYMLINK] Start: Target=%s, Link=%s\n", target, link);
+
+    // Create the inode for the symlink
+    ip = create((char *)link, T_SYMLINK, 0, 0);
+    //printf("[CREATESYMLINK] Returned value of create: %p\n", ip);
+    if (ip == 0) {
+        //printf("[CREATESYMLINK] Failed to create inode for link: %s\n", link);
+        return -1;
+    }
+    //printf("[CREATESYMLINK] Before Lock %p \n",ip);
+    //ilock(ip);
+    //printf("[CREATESYMLINK] After Lock\n");
+    //printf("[CREATESYMLINK] Link inode locked successfully\n");
+
+    // Check if the target path fits in the inode
+    if (strlen(target) + 1 > MAXFILE) {  // Assuming MAXFILE is the max inode size
+        //printf("[CREATESYMLINK] Target path too long: %s\n", target);
+        //iunlockput(ip);
+        return -1;
+    }
+
+    // Write the target path into the symlink inode
+    if (writei(ip, 0, (uint64)target, 0, strlen(target) + 1) < strlen(target) + 1) {
+        //printf("[CREATESYMLINK] Failed to write target path to inode\n");
+        ip->nlink = 0;  // Mark inode as unused
+        iupdate(ip);
+        //iunlockput(ip);
+        return -1;
+    }
+
+    // Update and release the inode
+    iupdate(ip);
+    iunlockput(ip);
+
+    //printf("[CREATESYMLINK] Symlink created successfully: Target=%s, Link=%s\n", target, link);
+    return 0;
+}
+
+/*
+uint64
+create_symlink(const char *target, const char *link) {
+    struct inode *ip;
+    printf("[CREATESYMLINK] Start: Target=%s, Link=%s\n", target, link);
+
+    // Create the inode for the symlink
+    ip = create((char *)link, T_SYMLINK, 0, 0);
+    if (ip == 0) {
+        printf("[CREATEFUNC] Failed to create inode for link: %s\n", link);
+        return -1;
+    }
+
+    ilock(ip);
+    printf("[CREATEFUNC] Link inode created successfully\n");
+
+    // Write the target path into the symlink inode
+    if (writei(ip, 0, (uint64)(target), 0, strlen(target) + 1) < 0) {
+        printf("[CREATEFUNC] Failed to write target to link inode\n");
+        iunlockput(ip);
+        return -1;
+    }
+
+    // Update and release the inode
+    iupdate(ip);
+    iunlockput(ip);
+
+    printf("[CREATEFUNC] Symlink created successfully: Target=%s, Link=%s\n", target, link);
+    return 0;
+}*/

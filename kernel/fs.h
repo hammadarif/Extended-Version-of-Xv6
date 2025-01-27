@@ -1,6 +1,6 @@
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
-
+#include "param.h"
 
 #define ROOTINO  1   // root i-number
 #define BSIZE 1024  // block size
@@ -60,4 +60,5 @@ struct dirent {
 
 //devnet device no
 #define DEV_NET 3
+
 

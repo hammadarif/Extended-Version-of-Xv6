@@ -134,12 +134,12 @@ int register_net_device(struct virtio_net *net, int dev_id) {
 }
 
 void init_netdev() {
-    for (int i = 0; i < MAX_NET_DEVICES; i++) {
-        struct virtio_net *net = init_virtio_net(i);
+    //for (int i = 0; i < MAX_NET_DEVICES; i++) {
+        struct virtio_net *net = init_virtio_net(0);
         if (net) {
-            register_net_device(net, i);
+            register_net_device(net, 0);
         }
-    }
+    //}
 
     devsw[DEV_NET].read = netdev_read;
     devsw[DEV_NET].write = netdev_write;

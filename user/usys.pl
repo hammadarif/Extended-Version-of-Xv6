@@ -38,3 +38,4 @@ entry("sleep");
 entry("uptime");
 entry("netdev_read");
 entry("netdev_write");
+entry("symlink");

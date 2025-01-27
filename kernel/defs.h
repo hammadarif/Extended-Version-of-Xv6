@@ -96,6 +96,7 @@ int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
 void            itrunc(struct inode*);
+uint64 create_symlink(const char *target, const char *link);
 
 // ramdisk.c
 void            ramdiskinit(void);

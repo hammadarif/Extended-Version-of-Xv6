@@ -148,3 +148,16 @@ sys_netdev_write(void) {
     return netdev_write(fd, src, n);
 }
 
+uint64 sys_symlink(void) {
+    char target[MAXPATH], link[MAXPATH];
+    begin_op();
+    if (argstr(0, target, MAXPATH) < 0 || argstr(1, link, MAXPATH) < 0)
+    {
+        end_op();
+        return -1;
+    }
+    uint64 ret_va =  create_symlink(target, link);
+    end_op();
+
+  return ret_va;
+}
