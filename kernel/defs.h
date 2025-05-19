@@ -48,6 +48,10 @@ int netdev_read(int fd, uint64 dst, int n);
 int netdev_write(int fd, uint64 src, int n);
 void init_netdev();
 
+//echo_server.c
+void echo_server_init(void);
+//void echo_server(void);
+
 
 //ethernetif.c
 err_t ethernetif_init(struct netif *netif);

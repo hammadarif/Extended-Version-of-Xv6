@@ -3,8 +3,11 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
+#include "lwip/timeouts.h"
 
 volatile static int started = 0;
+
+//extern void sys_check_timeouts(void);
 
 // start() jumps here in supervisor mode on all CPUs.
 void
@@ -32,7 +35,10 @@ main()
     init_netdev();
     //virtio_net_init(); // Initialize VirtIO-Net driver
     lwip_init_network(); //Lwip
-    
+    echo_server_init(); // Initialize echo server
+    while (1) {
+      sys_check_timeouts();  // make TCP connections work
+    }
     //run_virtio_net_tests();
     
     //virtio_net_enable_interrupt(); // Enable VirtIO-Net interrupts
@@ -48,6 +54,7 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
+
   }
 
   scheduler();        

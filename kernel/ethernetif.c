@@ -17,6 +17,7 @@ void* memcpy(void *dst, const void *src, uint n);
 /*
  * Initializes the Ethernet interface for lwIP and links it to the VirtIO driver.
  */
+/*
 err_t virtio_linkoutput(struct netif *netif, struct pbuf *p) {
     printf("Transmitting packet of size %d\n", p->len);
     // Allocate a buffer for transmission
@@ -34,7 +35,30 @@ err_t virtio_linkoutput(struct netif *netif, struct pbuf *p) {
     // Assume success for now (add error checks if needed)
     return ERR_OK;
 }
+*/
+err_t virtio_linkoutput(struct netif *netif, struct pbuf *p) {
+    printf("Transmitting packet of size %d\n", p->tot_len);
 
+    if (p->tot_len > MAX_PACKET_SIZE) {
+        return ERR_MEM;
+    }
+
+    uint8_t buffer[MAX_PACKET_SIZE];
+    if (pbuf_copy_partial(p, buffer, p->tot_len, 0) != p->tot_len) {
+        return ERR_IF;
+    }
+    
+    printf("TX first 14 bytes: ");
+    for (int i = 0; i < 16 && i < p->tot_len; i++)
+        printf("%x ", buffer[i] & 0xff);
+    printf("\n");
+    if (virtio_send_packet(buffer, p->tot_len) < 0) {
+        printf("[ERROR] Failed to send packet using virtio_send_packet\n");
+        return ERR_IF;
+    }
+
+    return ERR_OK;
+}
 err_t ethernetif_input(struct netif *netif, void *data, int len) {
     // Allocate a pbuf (lwIP's buffer abstraction)
     if (len <= 0)
@@ -42,12 +66,17 @@ err_t ethernetif_input(struct netif *netif, void *data, int len) {
         printf("Incoming data has no length \n");
     }
     
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+    struct pbuf *p = pbuf_alloc(PBUF_LINK, len, PBUF_POOL);
     if (p == NULL) {
         return ERR_MEM; // No memory available
     }
-
+    printf("Received packet of size %d\n", len);
+    printf("RX first 16 bytes: ");
+    for (int i = 0; i < 16 && i < len; i++)
+        printf("%x ", ((uint8_t*)data)[i]);
+    printf("\n");
     // Copy the data into the pbuf
+
     memcpy(p->payload, data, len);
 
     // Pass the pbuf to lwIP

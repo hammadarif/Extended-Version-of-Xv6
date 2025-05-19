@@ -25,7 +25,7 @@ LWIP_OBJS = \
 	lwip/core/ip.o \
 	lwip/core/netif.o \
 	lwip/core/def.o \
-	lwip/core/ipv4/ip4_addr.o
+	lwip/core/ipv4/ip4_addr.o 
 
 
 
@@ -64,7 +64,8 @@ OBJS = \
   $K/test/virtio_net_test.o \
   $K/lwip/arch/sys_arch.o \
   $K/ethernetif.o \
-  $K/netdev.o
+  $K/netdev.o \
+  $K/lwip/echo_server.o 
 OBJS += $(LWIP_OBJS)
 #OBJS += kernel/pci.o
 
@@ -218,6 +219,8 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0
 #QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0 -netdev user,id=net0
 QEMUOPTS += -netdev user,id=net0,hostfwd=tcp::2222-:22
+QEMUOPTS += -object filter-dump,id=f0,netdev=net0,file=en0.pcap
+#QEMUOPTS += -netdump=packets.pcap
 #QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1 -netdev user,id=net0 
 
 qemu: $K/kernel fs.img

@@ -255,16 +255,14 @@ int virtio_send_packet(void *data, uint len) {
         release(&net.tx_lock);
         return -1;
     }
-
+    printf("sizeof(struct virtio_net_hdr) = %lu\n", (unsigned long)sizeof(struct virtio_net_hdr));
     void *buf = net.tx.buf[desc_idx];
-    if ((uint64)buf % ALIGNMENT != 0) {
-        LOG_ERROR("TX buffer misaligned: %p\n", buf);
-        panic("TX buffer alignment");
-    }
-    memmove(buf, data, len);
+    struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)buf;
+    memset(hdr, 0, sizeof(struct virtio_net_hdr));
+    memmove((char*)buf + sizeof(struct virtio_net_hdr), data, len);
 
     net.tx.desc[desc_idx].addr  = (uint64)buf;
-    net.tx.desc[desc_idx].len   = len;
+    net.tx.desc[desc_idx].len   = len + sizeof(struct virtio_net_hdr);
     net.tx.desc[desc_idx].flags = 0;
     net.tx.desc[desc_idx].next  = 0;
 
@@ -338,6 +336,7 @@ void virtio_net_intr() {
  * ---------------------------------------------------------------------- */
 void lwip_init_network() {
     lwip_init();
+    //tcpip_init(NULL, NULL);
     ip4_addr_t ipaddr, netmask, gw;
     // Make the guest IP 10.0.2.15 (arbitrary .15)
     IP4_ADDR(&ipaddr, 10, 0, 2, 15);

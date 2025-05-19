@@ -35,6 +35,8 @@
 
 #define LWIP_PROVIDE_ERRNO 1
 
+#define ETH_PAD_SIZE 0
+
 
 
 #endif /* LWIPOPTS_H */

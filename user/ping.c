@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
     }
 
     struct icmp_hdr *reply = (struct icmp_hdr *)recv_buf;
+    printf("[PING]Ping reply received: seq=%d, len=%d\n", ntohs(reply->seq), len);
     if (reply->type == 0 && reply->id == htons(1234)) {
         printf("[PING]Ping reply received: seq=%d, len=%d\n", ntohs(reply->seq), len);
     } else {

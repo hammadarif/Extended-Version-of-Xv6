@@ -26,6 +26,7 @@
         "string.h": "c",
         "errno.h": "c",
         "stat.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "timeouts.h": "c"
     }
 }
