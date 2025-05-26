@@ -65,7 +65,8 @@
 // VirtIO networking-specific feature flags
 #define VIRTIO_NET_F_MAC        (1 << 5)  // Device has a MAC address
 #define VIRTIO_NET_F_STATUS     (1 << 16) // Link status is available
-#define VIRTIO_NET_F_CTRL_VQ    (1 << 17) // Control virtqueue
+//#define VIRTIO_NET_F_CTRL_VQ    (1 << 17) // Control virtqueue
+#define VIRTIO_NET_F_CTRL_VQ      17
 #define VIRTIO_NET_F_CSUM (1 << 0) // Device handles checksum offloading
 
 #define VIRTIO_NET_INTR_RX 0x1
@@ -167,3 +168,15 @@ struct virtio_net {
 extern struct virtio_net net;
 #endif // VIRTIO_H
 void init_virtqueue(struct virtqueue *q, int qidx);
+
+
+#define VIRTIO_F_VERSION_1             32
+//#define VIRTIO_NET_F_MAC               5
+#define VIRTIO_NET_F_GUEST_CSUM        0
+#define VIRTIO_NET_F_GUEST_TSO4        7
+#define VIRTIO_NET_F_GUEST_TSO6        8
+#define VIRTIO_NET_F_HOST_TSO4         11
+#define VIRTIO_NET_F_HOST_TSO6         12
+#define VIRTIO_NET_F_MRG_RXBUF         15
+#define VIRTIO_NET_F_CTRL_RX           18
+#define VIRTIO_NET_F_CTRL_MAC_ADDR     23

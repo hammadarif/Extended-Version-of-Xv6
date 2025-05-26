@@ -31,7 +31,7 @@ struct virtio_net *init_virtio_net(int dev_id);
 
 int netdev_read(int fd, uint64 dst, int n) {
     int dev_id = fd - DEV_NET;
-    printf("[NETDEV]The device id : %d\n", dev_id);
+    //printf("[NETDEV]The device id : %d\n", dev_id);
 
     if (dev_id < 0 || dev_id >= MAX_NET_DEVICES) {
         printf("[NETDEV]Invalid device ID: %d\n", dev_id);
