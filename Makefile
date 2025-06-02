@@ -25,7 +25,8 @@ LWIP_OBJS = \
 	lwip/core/ip.o \
 	lwip/core/netif.o \
 	lwip/core/def.o \
-	lwip/core/ipv4/ip4_addr.o 
+	lwip/core/ipv4/ip4_addr.o \
+	lwip/core/dns.o
 
 
 
@@ -65,7 +66,8 @@ OBJS = \
   $K/lwip/arch/sys_arch.o \
   $K/ethernetif.o \
   $K/netdev.o \
-  $K/lwip/echo_server.o 
+  $K/socket.o
+#  $K/lwip/echo_server.o 
 OBJS += $(LWIP_OBJS)
 #OBJS += kernel/pci.o
 
@@ -107,9 +109,11 @@ CFLAGS += -fno-builtin-strchr -fno-builtin-exit -fno-builtin-malloc -fno-builtin
 CFLAGS += -fno-builtin-free
 CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
-#CFLAGS += -I.
+#CFLAGS += -I
 CFLAGS += -I. -Ikernel -Ilwip/src/include -Ilwip/src/include/lwip -Ilwip/src/include/netif -Ilwip/src/api -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+kernel/%.o: CFLAGS += -DKERNEL
+
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
@@ -185,6 +189,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_ping\
+	$U/_echoserver\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -218,7 +223,8 @@ QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 #QEMUOPTS += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
 QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0
 #QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1,netdev=net0 -netdev user,id=net0
-QEMUOPTS += -netdev user,id=net0,hostfwd=tcp::2222-:22
+QEMUOPTS += -netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::5000-:5000
+QEMUOPTS += -D net.log -d guest_errors
 QEMUOPTS += -object filter-dump,id=f0,netdev=net0,file=en0.pcap
 #QEMUOPTS += -netdump=packets.pcap
 #QEMUOPTS += -device virtio-net-device,bus=virtio-mmio-bus.1 -netdev user,id=net0 

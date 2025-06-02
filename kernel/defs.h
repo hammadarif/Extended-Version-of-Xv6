@@ -14,6 +14,9 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct netif;
+struct tcp_pcb;
+struct socket;
+struct sockaddr;
 
 typedef s8_t err_t; //using uchar instead of int8_t
 
@@ -52,6 +55,19 @@ void init_netdev();
 void echo_server_init(void);
 //void echo_server(void);
 
+// socket.c
+void            sockinit(void);
+int             sockalloc(int, int, int, struct tcp_pcb*, struct proc*);
+void            sockclose(struct socket*);
+int             sockread(struct socket*, uint64, int);
+int             sockwrite(struct socket*, uint64, int);
+int             sockconnect(int, const struct sockaddr*, int);
+int             sockbind(int, const struct sockaddr*, int);
+int             socklisten(int, int);
+int             sockaccept(int, struct sockaddr*, int*);
+int             sockgethostbyname(const char*, struct sockaddr*);
+int             sockinetaddress(const char*, struct sockaddr*);
+
 
 //ethernetif.c
 err_t ethernetif_init(struct netif *netif);
@@ -73,6 +89,7 @@ void            consputc(int);
 int             exec(char*, char**);
 
 // file.c
+int             fdalloc_for_proc(struct file*, struct proc*);
 struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
@@ -186,9 +203,9 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
-void            argint(int, int*);
+int            argint(int, int*);
 int             argstr(int, char*, int);
-void            argaddr(int, uint64 *);
+int            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
@@ -239,3 +256,5 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+

@@ -12,6 +12,7 @@
 #define LWIP_ICMP               1       // Enable ICMP (required for ping)
 #define LWIP_TCP                1       // Disable TCP (not needed for ping)
 #define LWIP_UDP                1       // Disable UDP (not needed for ping)
+//#define LWIP_DHCP               1       // Enable DHCP for dynamic IP address assignment
 
 // PBUF configurations
 #define PBUF_POOL_SIZE          16      // Number of pbufs in the pool
@@ -31,7 +32,13 @@
 #define LWIP_DEBUG              1       // Enable lwIP debug options
 #define ICMP_DEBUG              LWIP_DBG_ON
 #define ETHARP_DEBUG            LWIP_DBG_ON
-#define ETHARP_DEBUG LWIP_DBG_ON
+#define TCPIP_DEBUG             LWIP_DBG_ON
+#define TCP_DEBUG               LWIP_DBG_ON
+#define TCP_INPUT_DEBUG         LWIP_DBG_ON
+#define TCP_OUTPUT_DEBUG        LWIP_DBG_ON
+#define IP_DEBUG                LWIP_DBG_ON
+#define NETIF_DEBUG             LWIP_DBG_ON
+
 
 #define LWIP_PROVIDE_ERRNO 1
 
@@ -39,4 +46,7 @@
 
 
 
+
+#define LWIP_DNS 1
+#define ETHARP_SUPPORT_STATIC_ENTRIES 1
 #endif /* LWIPOPTS_H */

@@ -155,9 +155,23 @@ kerneltrap()
         panic("kerneltrap: not from supervisor mode");
   }
   
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0)
+  // if this is a timer interrupt, call tcp_tmr() to handle TCP timers.
+  extern uint ticks;
+  extern void tcp_tmr(void);
+  static uint last_tcp_ticks = 0;
+  if (which_dev == 2 && myproc() != 0) {
+    if (ticks - last_tcp_ticks >= 3) {
+      tcp_tmr();
+      printf("tick: called tcp_tmr()\n");
+      last_tcp_ticks = ticks;
+    }
     yield();
+  }
+
+
+  // give up the CPU if this is a timer interrupt.
+  //if(which_dev == 2 && myproc() != 0)
+  //  yield();
 
   // the yield() may have caused some traps to occur,
   // so restore trap registers for use by kernelvec.S's sepc instruction.

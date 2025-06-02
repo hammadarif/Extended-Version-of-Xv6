@@ -36,14 +36,11 @@ main()
     //virtio_net_init(); // Initialize VirtIO-Net driver
     lwip_init_network(); //Lwip 
     //virtio_net_enable_interrupt(); // Enable VirtIO-Net interrupts
+    sockinit();     // socket table
     userinit();      // first user process
     __sync_synchronize();
     //pci_init();
     started = 1;
-    echo_server_init(); // Initialize echo server
-    /*while (1) {
-      sys_check_timeouts();  // make TCP connections work
-    }*/
     //run_virtio_net_tests();
   } else {
     while(started == 0)

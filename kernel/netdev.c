@@ -144,3 +144,8 @@ void init_netdev() {
     devsw[DEV_NET].read = netdev_read;
     devsw[DEV_NET].write = netdev_write;
 }
+unsigned long
+r_mtime(void)
+{
+  return *(uint64*)CLINT_MTIME;
+}

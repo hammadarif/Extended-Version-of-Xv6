@@ -7,7 +7,9 @@
 #include "memlayout.h"
 #include "lwip/init.h"
 #include "lwip/tcpip.h"
+#include "lwip/etharp.h"
 #include "netif/ethernet.h"
+
 
 #define R(r) ((volatile uint32 *)(VIRTIO1 + (r)))
 
@@ -136,6 +138,7 @@ void virtio_receive_packet(char *buffer, int buflen, int *received_len) {
 }
 
 int virtio_send_packet(void *data, uint len) {
+    printf("Virtio_send_packet called with len=%d\n", len);
     if (!data || len == 0 || len > PACKET_SIZE) {
         printf("Invalid TX packet: len=%d\n", len);
         return -1;
@@ -182,13 +185,14 @@ int virtio_send_packet(void *data, uint len) {
     net.tx.avail->ring[net.tx.avail->idx % NUM] = desc_idx;
     __sync_synchronize();
     net.tx.avail->idx++;
-
+    printf("TX descriptor %d added, idx now %d\n", desc_idx, net.tx.avail->idx);
     mmio_write(VIRTIO1 + VIRTIO_MMIO_QUEUE_NOTIFY, 1);
 
     release(&net.tx_lock);
     return 0;
 }
 void virtio_net_intr() {
+    printf("Intr_virtio_net: IRQ received\n");
     uint32 irq_status = mmio_read(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_STATUS);
     if (!irq_status) return;
 
@@ -214,8 +218,9 @@ void virtio_net_intr() {
         net.tx.used_idx++;
     }
     release(&net.tx_lock);
-
+    
     mmio_write(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_ACK, irq_status);
+    printf("Intr_virtio_net: IRQ processed\n");
 }
 struct virtio_net *init_virtio_net(int dev_id) {
     if (dev_id < 0 || dev_id >= MAX_NET_DEVICES) {
@@ -297,6 +302,10 @@ void virtio_net_init() {
         fill_rx(i);
     }
 
+    /* virtio-net initialisation */
+    //uint64_t host = mmio_read64(VIRTIO_MMIO_DEVICE_FEATURES);
+    //uint64_t guest = VIRTIO_F_VERSION_1 | VIRTIO_NET_F_MAC;   /* nothing else yet */
+    //mmio_write64(VIRTIO_MMIO_GUEST_FEATURES, guest & host);
     // Optional: read MAC address from device if needed
     // struct virtio_net_config *cfg = (struct virtio_net_config *)R(VIRTIO_MMIO_CONFIG);
     // for (int i = 0; i < 6; i++) net.mac[i] = cfg->mac[i];
@@ -306,13 +315,33 @@ void virtio_net_init() {
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
 }
 void lwip_init_network() {
+    printf("Initializing lwIP network stack...\n");
     lwip_init();
+    printf("lwIP initialized.\n");
+
     ip4_addr_t ipaddr, netmask, gw;
-    ip4addr_aton("192.168.100.2", &ipaddr);
-    ip4addr_aton("192.168.100.1", &gw);
+    //ip_addr_t gw_ip;
+    ip4addr_aton("10.0.2.15", &ipaddr);
     ip4addr_aton("255.255.255.0", &netmask);
+    ip4addr_aton("10.0.2.2", &gw);
+    
+    //IP_ADDR4(&gw_ip, 10, 0, 2, 2); // Gateway IP address
+    // Static ARP entry for gateway
+    struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
+    etharp_add_static_entry(&gw, &qemu_mac);
+
+    ip_addr_t ip_addr_any, netmask_ip, gw_ip;
+    ip_addr_copy_from_ip4(ip_addr_any, ipaddr);
+    ip_addr_copy_from_ip4(netmask_ip, netmask);
+    ip_addr_copy_from_ip4(gw_ip, gw);
+
+    printf("Setting up lwIP network interface...\n");
     netif_add(&lwip_netif, &ipaddr, &netmask, &gw,
-              NULL, ethernetif_init, tcpip_input);
+              NULL, ethernetif_init, netif_input);
+    printf("lwIP network interface added: %s\n", lwip_netif.name);
     netif_set_default(&lwip_netif);
+    printf("Setting lwIP network interface up...\n");
     netif_set_up(&lwip_netif);
+    printf("lwIP network interface is up.\n");
+    printf("netif ip: %s\n", ip4addr_ntoa(&ipaddr));
 }

@@ -27,6 +27,9 @@
         "errno.h": "c",
         "stat.h": "c",
         "syscall.h": "c",
-        "timeouts.h": "c"
+        "timeouts.h": "c",
+        "debug.h": "c",
+        "user.h": "c",
+        "socket.h": "c"
     }
 }

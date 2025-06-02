@@ -54,19 +54,21 @@ argraw(int n)
 }
 
 // Fetch the nth 32-bit system call argument.
-void
+int
 argint(int n, int *ip)
 {
   *ip = argraw(n);
+  return 0;
 }
 
 // Retrieve an argument as a pointer.
 // Doesn't check for legality, since
 // copyin/copyout will do that.
-void
+int
 argaddr(int n, uint64 *ip)
 {
   *ip = argraw(n);
+  return 0;
 }
 
 // Fetch the nth word-sized system call argument as a null-terminated string.
@@ -108,6 +110,16 @@ extern uint64 sys_netdev_read(void);
 extern uint64 sys_netdev_write(void);
 //extern uint64 sys_netdev_available(void);
 extern uint64 sys_symlink(void);
+//extern uint64 sys_ntas(void);
+//extern uint64 sys_nfree(void);
+extern uint64 sys_socket(void);
+extern uint64 sys_connect(void);
+extern uint64 sys_bind(void);
+extern uint64 sys_listen(void);
+extern uint64 sys_accept(void);
+extern uint64 sys_gethostbyname(void);
+extern uint64 sys_inetaddress(void);
+extern uint64 sys_timenow(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -136,6 +148,17 @@ static uint64 (*syscalls[])(void) = {
 [SYS_netdev_read] sys_netdev_read,
 [SYS_netdev_write] sys_netdev_write,
 [SYS_symlink] sys_symlink,
+//[SYS_ntas]    sys_ntas,
+//[SYS_nfree]   sys_nfree,
+[SYS_socket]  sys_socket,
+[SYS_connect] sys_connect,
+[SYS_bind]    sys_bind,
+[SYS_listen]  sys_listen,
+[SYS_accept]  sys_accept,
+[SYS_gethostbyname] sys_gethostbyname,
+[SYS_inetaddress] sys_inetaddress,
+[SYS_timenow] sys_timenow,
+
 };
 
 void

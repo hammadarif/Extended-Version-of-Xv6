@@ -699,3 +699,7 @@ procdump(void)
 struct proc* allocproc_wrapper(void) {
   return allocproc();
 }
+
+uint sys_timenow(){
+  return ticks;
+}

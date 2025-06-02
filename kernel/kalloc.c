@@ -21,6 +21,7 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  //uint64 nfree;
 } kmem;
 
 void
@@ -88,3 +89,9 @@ void *kalloc_aligned(int alignment) {
     uint64 aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
     return (void *)aligned_addr;
 }
+
+/*uint64
+sys_nfree(void)
+{
+  return kmem.nfree;
+}*/
