@@ -147,7 +147,7 @@ int virtio_send_packet(void *data, uint len) {
     acquire(&net.tx_lock);
 
     if (net.tx.avail->idx - net.tx.used_idx == NUM) {
-        printf("TX ring full\n");
+        printf("[ERROR] TX ring full — %d pending packets\n", NUM);
         release(&net.tx_lock);
         return -1;
     }
@@ -158,9 +158,19 @@ int virtio_send_packet(void *data, uint len) {
         release(&net.tx_lock);
         return -1;
     }
+    if (desc_idx >= 2 * NUM) {
+        printf("Invalid TX descriptor index: %d\n", desc_idx);
+        release(&net.tx_lock);
+        return -1;
+    }
 
     void *buf = net.tx.buf[desc_idx];
-    memset(buf, 0, PGSIZE); // 🛡️ ensures no garbage leaks
+    if (!buf) {
+        printf("virtio_send_packet: TX buffer is NULL at index %d\n", desc_idx);
+        release(&net.tx_lock);
+        return -1;
+    }
+    memset(buf, 0, PGSIZE); //  ensures no garbage leaks
 
     //struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)buf;
     // no flags needed: let all be 0
@@ -327,9 +337,9 @@ void lwip_init_network() {
     
     //IP_ADDR4(&gw_ip, 10, 0, 2, 2); // Gateway IP address
     // Static ARP entry for gateway
-    struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
+    /*struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
     etharp_add_static_entry(&gw, &qemu_mac);
-
+    */
     ip_addr_t ip_addr_any, netmask_ip, gw_ip;
     ip_addr_copy_from_ip4(ip_addr_any, ipaddr);
     ip_addr_copy_from_ip4(netmask_ip, netmask);
@@ -337,7 +347,7 @@ void lwip_init_network() {
 
     printf("Setting up lwIP network interface...\n");
     netif_add(&lwip_netif, &ipaddr, &netmask, &gw,
-              NULL, ethernetif_init, netif_input);
+              NULL, ethernetif_init, ethernet_input);
     printf("lwIP network interface added: %s\n", lwip_netif.name);
     netif_set_default(&lwip_netif);
     printf("Setting lwIP network interface up...\n");

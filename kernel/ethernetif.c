@@ -8,6 +8,7 @@
 //#include "defs.h"
 #include "lwip/etharp.h"
 #include "lwip/ip.h"
+#include "netif/ethernet.h"
 
 // Current default mac address could be replaced by logic later on
 static const uint8_t default_mac_address[ETH_HWADDR_LEN] = {0x02, 0xAB, 0x00, 0x00, 0x00, 0x01};
@@ -43,13 +44,19 @@ err_t virtio_linkoutput(struct netif *netif, struct pbuf *p) {
 */
 err_t virtio_linkoutput(struct netif *netif, struct pbuf *p) {
     printf("Transmitting packet of size %d\n", p->tot_len);
+    if (!p) {
+        printf("[ERROR] virtio_linkoutput called with NULL pbuf\n");
+        return ERR_ARG;
+    }
 
-    if (p->tot_len > MAX_PACKET_SIZE) {
+    if (p->tot_len <= 0 || p->tot_len > MAX_PACKET_SIZE) {
+        printf("[ERROR] Invalid packet length in virtio_linkoutput: %d\n", p->tot_len);
         return ERR_MEM;
     }
 
     uint8_t buffer[MAX_PACKET_SIZE];
     if (pbuf_copy_partial(p, buffer, p->tot_len, 0) != p->tot_len) {
+        printf("[ERROR] pbuf_copy_partial failed\n");
         return ERR_IF;
     }
     
@@ -107,6 +114,7 @@ err_t ethernetif_input(struct netif *netif, void *data, int len) {
     // Pass the pbuf to lwIP
     err_t res = netif->input(p, netif);
     if (res != ERR_OK) printf("ethernetif_input: netif->input returned %d\n", res);
+    //pbuf_free(p); // Free the pbuf after processing
     return res;
 }
 
@@ -130,7 +138,7 @@ err_t ethernetif_init(struct netif *netif) {
     // Set output functions
     netif->output = etharp_output;          // Handle ARP requests
     netif->linkoutput = virtio_linkoutput; // Send packets via VirtIO
-    netif->input = ip_input;
+    netif->input = ethernet_input;
 
     return ERR_OK;
 }
