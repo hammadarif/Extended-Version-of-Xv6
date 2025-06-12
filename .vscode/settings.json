@@ -30,6 +30,7 @@
         "timeouts.h": "c",
         "debug.h": "c",
         "user.h": "c",
-        "socket.h": "c"
+        "socket.h": "c",
+        "netifapi.h": "c"
     }
 }

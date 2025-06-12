@@ -7,6 +7,7 @@
 #include "lwip/prot/tcp.h"
 //#include "defs.h"
 #include "lwip/etharp.h"
+#include "lwip/ip.h"
 
 // Current default mac address could be replaced by logic later on
 static const uint8_t default_mac_address[ETH_HWADDR_LEN] = {0x02, 0xAB, 0x00, 0x00, 0x00, 0x01};
@@ -129,6 +130,7 @@ err_t ethernetif_init(struct netif *netif) {
     // Set output functions
     netif->output = etharp_output;          // Handle ARP requests
     netif->linkoutput = virtio_linkoutput; // Send packets via VirtIO
+    netif->input = ip_input;
 
     return ERR_OK;
 }

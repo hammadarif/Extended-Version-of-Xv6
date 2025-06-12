@@ -2,7 +2,8 @@
 #define LWIPOPTS_H
 
 // Core configurations
-#define NO_SYS                  0       // Enable threaded mode (required for tcpip_input)
+#define NO_SYS                  1       // Enable threaded mode (required for tcpip_input)
+#define SYS_LIGHTWEIGHT_PROT    0
 #define MEM_ALIGNMENT           4       // Align memory to 4 bytes (suitable for RISC-V)
 #define MEM_SIZE                (32 * 1024) // Increase memory pool size for reliability
 
@@ -12,6 +13,8 @@
 #define LWIP_ICMP               1       // Enable ICMP (required for ping)
 #define LWIP_TCP                1       // Disable TCP (not needed for ping)
 #define LWIP_UDP                1       // Disable UDP (not needed for ping)
+#define LWIP_DNS                1
+#define ETHARP_SUPPORT_STATIC_ENTRIES 1
 //#define LWIP_DHCP               1       // Enable DHCP for dynamic IP address assignment
 
 // PBUF configurations
@@ -19,14 +22,19 @@
 #define PBUF_POOL_BUFSIZE       1518    // Buffer size to hold a full Ethernet frame
 
 // Optional APIs
-#define LWIP_NETIF_API          1       // Enable network interface API
-#define LWIP_NETCONN            1       // Disable Netconn API (optional)
+#define LWIP_NETIF_API          0       // Enable network interface API
+#define LWIP_NETCONN            0       // Disable Netconn API (optional)
 #define LWIP_SOCKET             0       // Disable BSD-style socket API (optional)
 
 
 
 #define LWIP_STATS              1       // Enable lwIP statistics
 #define LWIP_ETHERNET           1       // Enable Ethernet support
+#define ETH_PAD_SIZE            0       // No padding for Ethernet frames
+
+
+
+#define LWIP_PROVIDE_ERRNO       1      // Provide errno for lwIP
 
 // Debugging (Optional)
 #define LWIP_DEBUG              1       // Enable lwIP debug options
@@ -40,9 +48,9 @@
 #define NETIF_DEBUG             LWIP_DBG_ON
 
 
-#define LWIP_PROVIDE_ERRNO 1
 
-#define ETH_PAD_SIZE 0
+
+
 
 
 
