@@ -2,6 +2,7 @@
 #define ARCH_CC_H
 #include "types.h"
 // Prevent inclusion of unistd.h by redefining macros
+#define LWIP_NO_CTYPE_H 1
 #define LWIP_NO_UNISTD_H 1
 
 // Basic integer types

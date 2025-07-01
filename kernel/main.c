@@ -3,7 +3,7 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
-#include "lwip/timeouts.h"
+//#include "lwip/timeouts.h"
 
 volatile static int started = 0;
 
@@ -34,7 +34,7 @@ main()
     virtio_disk_init(); // emulated hard disk
     init_netdev();
     //virtio_net_init(); // Initialize VirtIO-Net driver
-    lwip_init_network(); //Lwip 
+    //lwip_init_network(); //Lwip 
     //virtio_net_enable_interrupt(); // Enable VirtIO-Net interrupts
     sockinit();     // socket table
     userinit();      // first user process

@@ -10,7 +10,7 @@ typedef unsigned long uint64;
 
 typedef uint64 pde_t;
 
-typedef long ssize_t;  // Add this to types.h if not already defined.
+//typedef long ssize_t;  // Add this to types.h if not already defined.
 
 
 

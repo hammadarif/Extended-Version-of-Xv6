@@ -31,6 +31,7 @@
         "debug.h": "c",
         "user.h": "c",
         "socket.h": "c",
-        "netifapi.h": "c"
+        "netifapi.h": "c",
+        "ip.h": "c"
     }
 }

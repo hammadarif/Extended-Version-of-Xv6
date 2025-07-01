@@ -117,7 +117,7 @@ extern uint64 sys_connect(void);
 extern uint64 sys_bind(void);
 extern uint64 sys_listen(void);
 extern uint64 sys_accept(void);
-extern uint64 sys_gethostbyname(void);
+//extern uint64 sys_gethostbyname(void);
 extern uint64 sys_inetaddress(void);
 extern uint64 sys_timenow(void);
 
@@ -155,7 +155,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_bind]    sys_bind,
 [SYS_listen]  sys_listen,
 [SYS_accept]  sys_accept,
-[SYS_gethostbyname] sys_gethostbyname,
+//[SYS_gethostbyname] sys_gethostbyname,
 [SYS_inetaddress] sys_inetaddress,
 [SYS_timenow] sys_timenow,
 

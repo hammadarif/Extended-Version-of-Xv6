@@ -18,6 +18,7 @@ struct proc;
 // 2) Define the lwIP-specific sys_* types BEFORE including lwIP headers
 // -----------------------------------------------------------------------------
 
+#if 0
 // lwIP needs to know the size of your mailbox. If you want a fixed 10:
 #ifndef SYS_MBOX_SIZE
 #define SYS_MBOX_SIZE 10
@@ -46,7 +47,7 @@ typedef struct {
 
 // sys_thread_t: on xv6, a thread can be represented by 'struct proc *'
 typedef struct proc *sys_thread_t;
-
+#endif
 // sys_prot_t: used by sys_arch_protect(). Usually an integer or uint64 on RISC-V.
 typedef uint64 sys_prot_t;
 
@@ -76,7 +77,7 @@ int sleep_timeout(void* chan, struct spinlock* lk, uint64 ticks_to_wait);
 // 5) Provide function prototypes for your sys_arch.c implementations
 //    (matching lwIP's expected signatures)
 // -----------------------------------------------------------------------------
-
+#if 0
 // Semaphores
 err_t  sys_sem_new(sys_sem_t *sem, u8_t count);
 void   sys_sem_free(sys_sem_t *sem);
@@ -94,6 +95,7 @@ u32_t  sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout);
 sys_thread_t sys_thread_new(const char *name, void (*thread)(void *arg),
                             void *arg, int stacksize, int prio);
 
+#endif
 // Protection (interrupt disable/restore)
 sys_prot_t sys_arch_protect(void);
 void       sys_arch_unprotect(sys_prot_t p);

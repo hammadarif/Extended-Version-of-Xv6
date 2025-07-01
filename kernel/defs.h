@@ -65,7 +65,7 @@ int             sockconnect(int, const struct sockaddr*, int);
 int             sockbind(int, const struct sockaddr*, int);
 int             socklisten(int, int);
 int             sockaccept(int, struct sockaddr*, int*);
-int             sockgethostbyname(const char*, struct sockaddr*);
+//int             sockgethostbyname(const char*, struct sockaddr*);
 int             sockinetaddress(const char*, struct sockaddr*);
 
 

@@ -34,6 +34,6 @@
 #define SYS_bind            28
 #define SYS_listen          29
 #define SYS_accept          30
-#define SYS_gethostbyname   31
-#define SYS_inetaddress     32
-#define SYS_timenow     33
+//#define SYS_gethostbyname   31
+#define SYS_inetaddress     31
+#define SYS_timenow     32

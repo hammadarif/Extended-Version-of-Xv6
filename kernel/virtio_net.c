@@ -327,8 +327,8 @@ void lwip_init_network() {
     
     //IP_ADDR4(&gw_ip, 10, 0, 2, 2); // Gateway IP address
     // Static ARP entry for gateway
-    struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
-    etharp_add_static_entry(&gw, &qemu_mac);
+    //struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
+    //etharp_add_static_entry(&gw, &qemu_mac);
 
     ip_addr_t ip_addr_any, netmask_ip, gw_ip;
     ip_addr_copy_from_ip4(ip_addr_any, ipaddr);

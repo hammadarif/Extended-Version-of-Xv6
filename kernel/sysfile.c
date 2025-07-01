@@ -745,7 +745,7 @@ sys_accept(void)
   
   return new_sockfd;
 }
-
+/*
 uint64
 sys_gethostbyname(void)
 {
@@ -770,7 +770,7 @@ sys_gethostbyname(void)
 
   return rc;
 }
-
+*/
 uint64
 sys_inetaddress(void)
 {

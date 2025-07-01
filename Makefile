@@ -1,7 +1,7 @@
 K=kernel
 U=user
-LWIP_SRCS := $(shell find lwip/src -name "*.c")
-LWIP_OBJS = \
+#LWIP_SRCS := $(shell find lwip/src -name "*.c")
+#LWIP_OBJS = \
     lwip/core/mem.o \
     lwip/core/memp.o \
     lwip/core/stats.o \
@@ -14,7 +14,6 @@ LWIP_OBJS = \
     lwip/core/udp.o \
     lwip/core/ipv4/icmp.o \
     lwip/netif/ethernet.o \
-    lwip/netif/ethernetif.o \
     lwip/core/ipv4/etharp.o \
     lwip/core/ipv4/ip4.o \
     lwip/core/ipv4/ip4_frag.o \
@@ -28,12 +27,41 @@ LWIP_OBJS = \
 	lwip/core/ipv4/ip4_addr.o \
 	lwip/core/dns.o
 
-
+LWIP_OBJS += \
+  lwip/core/init.o \
+  lwip/core/def.o \
+  lwip/core/dns.o \
+  lwip/core/inet_chksum.o \
+  lwip/core/ip.o \
+  lwip/core/mem.o \
+  lwip/core/memp.o \
+  lwip/core/netif.o \
+  lwip/core/pbuf.o \
+  lwip/core/raw.o \
+  lwip/core/stats.o \
+  lwip/core/sys.o \
+  lwip/core/tcp.o \
+  lwip/core/tcp_in.o \
+  lwip/core/tcp_out.o \
+  lwip/core/timeouts.o \
+  lwip/core/udp.o \
+  lwip/api/tcpip.o \
+  lwip/core/ipv4/autoip.o \
+  lwip/core/ipv4/dhcp.o \
+  lwip/core/ipv4/etharp.o \
+  lwip/core/ipv4/icmp.o \
+  lwip/core/ipv4/igmp.o \
+  lwip/core/ipv4/ip4_frag.o \
+  lwip/core/ipv4/ip4.o \
+  lwip/core/ipv4/ip4_addr.o \
+  lwip/api/err.o \
+  lwip/netif/ethernet.o \
 
 	
 
 
 OBJS = \
+  $K/lwip/libc_stub.o \
   $K/entry.o \
   $K/start.o \
   $K/console.o \
@@ -62,7 +90,6 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o \
   $K/virtio_net.o \
-  $K/test/virtio_net_test.o \
   $K/lwip/arch/sys_arch.o \
   $K/ethernetif.o \
   $K/netdev.o \
@@ -110,7 +137,7 @@ CFLAGS += -fno-builtin-free
 CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 #CFLAGS += -I
-CFLAGS += -I. -Ikernel -Ilwip/src/include -Ilwip/src/include/lwip -Ilwip/src/include/netif -Ilwip/src/api -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
+CFLAGS += -I. -Ikernel -Ilwip/include -Ilwip/include/lwip -Ilwip/src/include/netif -Ilwip/api -Ikernel/lwip -Ikernel/lwip/arch # Added lwIP headers path
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 kernel/%.o: CFLAGS += -DKERNEL
 

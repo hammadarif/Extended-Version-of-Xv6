@@ -688,6 +688,7 @@ int sockaccept(int sockfd, struct sockaddr *addr, int *addrlen)
 // https://man7.org/linux/man-pages/man3/gethostbyname.3.html
 // populates the sockaddr struct with one IP address of the host
 // returns 0 on success, or -1 on error
+/*
 int sockgethostbyname(const char *name, struct sockaddr *addr)
 {
     // set DNS server address to Google's public DNS server
@@ -727,9 +728,19 @@ int sockgethostbyname(const char *name, struct sockaddr *addr)
     
     return 0;
 }
-
+*/
 //called from sys_socketinetaddress
 int sockinetaddress(const char *name, struct sockaddr *addr){
     addr->sin_addr = inet_addr(name);
     return 0;
 }
+/*
+u32_t
+sys_now(void)
+{
+    // Return a millisecond timestamp without using tickslock.
+    // If 'ticks' increments at 100Hz, each increment = 10 ms
+    // The read below is unlocked.
+    return (u32_t)(ticks * 10);
+}
+*/    
