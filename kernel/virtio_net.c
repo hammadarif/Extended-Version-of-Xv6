@@ -202,24 +202,28 @@ int virtio_send_packet(void *data, uint len) {
     return 0;
 }
 void virtio_net_intr() {
-    printf("Intr_virtio_net: IRQ received\n");
     uint32 irq_status = mmio_read(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_STATUS);
     if (!irq_status) return;
 
-    acquire(&net.rx_lock);
-    while (net.rx.used->idx != net.rx.used_idx) {
-        //int used_i = net.rx.used_idx % NUM;
-        //int desc_idx = net.rx.used->ring[used_i].id;
+    // 1) Drain RX completions into a local buffer WITHOUT calling lwIP while locks are held.
+    for (;;) {
+        int more = 0;
         char buffer[PACKET_SIZE];
         int received_len = 0;
-        release(&net.rx_lock);
-        virtio_receive_packet(buffer, sizeof(buffer), &received_len);
-        acquire(&net.rx_lock);
-        if (received_len > 0)
-            ethernetif_input(&lwip_netif, buffer, received_len);
-    }
-    release(&net.rx_lock);
 
+        // virtio_receive_packet() acquires/releases net.rx_lock internally.
+        virtio_receive_packet(buffer, sizeof(buffer), &received_len);
+
+        if (received_len > 0) {
+            // 2) Now hand to lwIP OUTSIDE of any device locks and WITHOUT printf.
+            ethernetif_input(&lwip_netif, buffer, received_len);
+            more = 1;
+        }
+
+        if (!more) break; // nothing more to drain
+    }
+
+    // 3) Clean up TX used (with its own lock), no printing here.
     acquire(&net.tx_lock);
     while (net.tx.used->idx != net.tx.used_idx) {
         int used_i = net.tx.used_idx % NUM;
@@ -228,10 +232,12 @@ void virtio_net_intr() {
         net.tx.used_idx++;
     }
     release(&net.tx_lock);
-    
+
     mmio_write(VIRTIO1 + VIRTIO_MMIO_INTERRUPT_ACK, irq_status);
-    printf("Intr_virtio_net: IRQ processed\n");
 }
+
+
+
 struct virtio_net *init_virtio_net(int dev_id) {
     if (dev_id < 0 || dev_id >= MAX_NET_DEVICES) {
         LOG_ERROR("Invalid device ID: %d\n", dev_id);
@@ -313,13 +319,6 @@ void virtio_net_init() {
     }
 
     /* virtio-net initialisation */
-    //uint64_t host = mmio_read64(VIRTIO_MMIO_DEVICE_FEATURES);
-    //uint64_t guest = VIRTIO_F_VERSION_1 | VIRTIO_NET_F_MAC;   /* nothing else yet */
-    //mmio_write64(VIRTIO_MMIO_GUEST_FEATURES, guest & host);
-    // Optional: read MAC address from device if needed
-    // struct virtio_net_config *cfg = (struct virtio_net_config *)R(VIRTIO_MMIO_CONFIG);
-    // for (int i = 0; i < 6; i++) net.mac[i] = cfg->mac[i];
-
     // Step 12: Mark driver as ready
     status |= VIRTIO_CONFIG_S_DRIVER_OK;
     mmio_write(VIRTIO1 + VIRTIO_MMIO_STATUS, status);
@@ -330,16 +329,11 @@ void lwip_init_network() {
     printf("lwIP initialized.\n");
 
     ip4_addr_t ipaddr, netmask, gw;
-    //ip_addr_t gw_ip;
+
     ip4addr_aton("10.0.2.15", &ipaddr);
     ip4addr_aton("255.255.255.0", &netmask);
     ip4addr_aton("10.0.2.2", &gw);
     
-    //IP_ADDR4(&gw_ip, 10, 0, 2, 2); // Gateway IP address
-    // Static ARP entry for gateway
-    /*struct eth_addr qemu_mac = { .addr = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 } };
-    etharp_add_static_entry(&gw, &qemu_mac);
-    */
     ip_addr_t ip_addr_any, netmask_ip, gw_ip;
     ip_addr_copy_from_ip4(ip_addr_any, ipaddr);
     ip_addr_copy_from_ip4(netmask_ip, netmask);
