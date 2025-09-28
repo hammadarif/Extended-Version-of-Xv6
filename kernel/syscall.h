@@ -20,3 +20,20 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+#define SYS_netdev_read 22
+#define SYS_netdev_write 23
+#define SYS_symlink 24
+//#define SYS_netdev_available 26
+
+
+//Syscalls for adding networking functionality for sockets API
+//#define SYS_ntas            25
+//#define SYS_nfree           26
+#define SYS_socket          26
+#define SYS_connect         27
+#define SYS_bind            28
+#define SYS_listen          29
+#define SYS_accept          30
+#define SYS_gethostbyname   31
+#define SYS_inetaddress     32
+#define SYS_timenow     33

@@ -1,4 +1,8 @@
+#include "kernel/types.h"
 struct stat;
+struct rtcdate;
+struct sockaddr;
+
 
 // system calls
 int fork(void);
@@ -22,6 +26,16 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int symlink(const char *target, const char *link);
+int socket(int, int, int);
+int connect(int, const struct sockaddr*, int);
+int bind(int, const struct sockaddr*, int);
+int listen(int, int);
+int accept(int, struct sockaddr*, int*);
+int gethostbyname(const char*, struct sockaddr*);
+int inetaddress(const char*, struct sockaddr*);
+uint timenow();
+
 
 // ulib.c
 int stat(const char*, struct stat*);
@@ -41,3 +55,10 @@ void *memcpy(void *, const void *, uint);
 // umalloc.c
 void* malloc(uint);
 void free(void*);
+
+
+//Integration to use netdev systemcalls
+//int netdev_open(int fd, int mode);
+//void netdev_close(int fd);
+int netdev_read(int fd, uint64 dst, int n);
+int netdev_write(int fd, uint64 src, int n);

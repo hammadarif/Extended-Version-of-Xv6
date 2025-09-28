@@ -22,10 +22,12 @@
 #include "file.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
+
+#define MAX_SYMLINK_DEPTH 10 //to avoid infinite loop check
 // there should be one superblock per disk device, but we run with
 // only one device
 struct superblock sb; 
-
+static struct inode* namei_safely(char *path, int depth);
 // Read the super block.
 static void
 readsb(int dev, struct superblock *sb)
@@ -235,7 +237,9 @@ iupdate(struct inode *ip)
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
+  //memmove(dip->symlink_path, ip->symlink_path, sizeof(ip->symlink_path));
   log_write(bp);
   brelse(bp);
 }
@@ -294,12 +298,10 @@ ilock(struct inode *ip)
 {
   struct buf *bp;
   struct dinode *dip;
-
   if(ip == 0 || ip->ref < 1)
     panic("ilock");
 
   acquiresleep(&ip->lock);
-
   if(ip->valid == 0){
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
@@ -320,8 +322,8 @@ ilock(struct inode *ip)
 void
 iunlock(struct inode *ip)
 {
-  if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
-    panic("iunlock");
+  if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1){
+    panic("iunlock");}
 
   releasesleep(&ip->lock);
 }
@@ -553,7 +555,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
 {
   uint off, inum;
   struct dirent de;
-
+  //printf("[DIRLOOKUP] Start \n");
   if(dp->type != T_DIR)
     panic("dirlookup not DIR");
 
@@ -563,6 +565,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
     if(de.inum == 0)
       continue;
     if(namecmp(name, de.name) == 0){
+      //printf("[DIRLOOKUP] In Namecompare loop \n");
       // entry matches path element
       if(poff)
         *poff = off;
@@ -683,12 +686,50 @@ namex(char *path, int nameiparent, char *name)
   return ip;
 }
 
+static struct inode*
+namei_safely(char *path, int depth)
+{
+  char name[DIRSIZ];
+  struct inode *ip;
+
+  // Prevent infinite loops
+  if(depth > MAX_SYMLINK_DEPTH){
+    return 0; // or handle error
+  }
+
+  ip = namex(path, 0, name);
+  if (ip == 0) {
+    return 0; // Path not found
+  }
+
+  if (ip->type == T_SYMLINK) {
+      char target[MAXPATH];
+      memset(target, 0, sizeof(target));
+
+      ilock(ip);
+      int n = readi(ip, 0, (uint64)target, 0, sizeof(target) - 1);
+      iunlockput(ip);
+
+      if (n < 0) {
+          return 0; // error reading the symlink contents
+      }
+      target[n] = '\0';  // ensure null-termination
+
+      // Recursively resolve the target
+      return namei_safely(target, depth + 1);
+  }
+
+  // Not a symlink
+  return ip;
+}
+
+// Then your original namei could be:
 struct inode*
 namei(char *path)
 {
-  char name[DIRSIZ];
-  return namex(path, 0, name);
+  return namei_safely(path, 0);
 }
+
 
 struct inode*
 nameiparent(char *path, char *name)

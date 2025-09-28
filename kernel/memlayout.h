@@ -22,8 +22,11 @@
 #define UART0_IRQ 10
 
 // virtio mmio interface
-#define VIRTIO0 0x10001000
+#define VIRTIO0 0x10001000 //Block device MMIO base
 #define VIRTIO0_IRQ 1
+#define VIRTIO1 0x10002000 // Network device
+#define VIRTIO1_IRQ 2
+
 
 // qemu puts platform-level interrupt controller (PLIC) here.
 #define PLIC 0x0c000000L
@@ -57,3 +60,9 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
+
+// core local interruptor (CLINT), which contains the timer.
+#define CLINT 0x2000000L
+#define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
+#define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.

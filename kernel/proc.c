@@ -1,5 +1,4 @@
 #include "types.h"
-#include "param.h"
 #include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
@@ -148,6 +147,8 @@ found:
 
   return p;
 }
+
+
 
 // free a proc structure and the data hanging from it,
 // including user pages.
@@ -692,4 +693,13 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//To use allocproc
+struct proc* allocproc_wrapper(void) {
+  return allocproc();
+}
+
+uint sys_timenow(){
+  return ticks;
 }

@@ -1,0 +1,37 @@
+# Ignore object files and build artifacts
+*.o
+*.d
+*.a
+*.img
+
+# Ignore the kernel image
+kernel.img
+
+# Ignore the build directory if it exists (replace if you create obj-dir)
+obj/
+
+# Ignore temporary files created by editors (like Vim, Emacs, etc.)
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+#Ignore assembly files
+*.asm
+*.sym
+#Ignore other files
+_*
+*.out
+*_OLD.c
+ping1.c
+*copy.c
+
+
+# Ignore other system-specific files (e.g., Mac OS X, Windows, etc.)
+.DS_Store
+Thumbs.db
+
+# Ignore extra testing files
+
+*.pcap
+

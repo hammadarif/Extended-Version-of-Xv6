@@ -1,3 +1,5 @@
+#include "param.h"
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -17,6 +19,8 @@ struct context {
   uint64 s10;
   uint64 s11;
 };
+
+typedef uint64* pagetable_t; // Forward declare as a pointer type
 
 // Per-CPU state.
 struct cpu {
@@ -105,3 +109,4 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 };
+

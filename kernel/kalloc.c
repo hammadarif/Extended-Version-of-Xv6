@@ -21,6 +21,7 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  //uint64 nfree;
 } kmem;
 
 void
@@ -80,3 +81,17 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+void *kalloc_aligned(int alignment) {
+    void *ptr = kalloc();
+    if (!ptr) return 0; // Return 0 if allocation failed
+    uint64 addr = (uint64)ptr;
+    uint64 aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
+    return (void *)aligned_addr;
+}
+
+/*uint64
+sys_nfree(void)
+{
+  return kmem.nfree;
+}*/

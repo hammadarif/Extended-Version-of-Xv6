@@ -1,3 +1,8 @@
+
+
+//#include "types.h"   // Includes uint64_t, pagetable_t, etc.
+
+
 struct buf;
 struct context;
 struct file;
@@ -8,6 +13,64 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct netif;
+struct tcp_pcb;
+struct socket;
+struct sockaddr;
+
+typedef s8_t err_t; //using uchar instead of int8_t
+
+
+//For testing purpose setting up logs
+#define DEBUG 1 // Set to 0 to disable debug logs
+#define LOG(fmt, ...) if (DEBUG) printf(fmt, ##__VA_ARGS__)
+
+
+
+//virtio.c
+
+void virtio_net_init();               // Initialize the VirtIO network device
+//void virtio_net_enable_interrupt();  // Enable VirtIO-Net interrupts
+void virtio_net_intr();
+int virtio_send_packet(void *data, uint len);
+void virtio_receive_packet(char *buffer, int buflen, int *received_len);
+uint64 sys_send_packet(void);
+uint64 sys_recv_packet(void);
+void run_virtio_net_tests();
+//char *alloc_buffer();
+void free_buffer(char *buffer);
+uint32 mmio_read(uint64 addr);
+void mmio_write(uint64 addr, uint32 val);
+void setup_receive_descriptor(int desc_idx);
+void lwip_init_network();
+
+//netdev.c
+//int netdev_open(int fd, int mode);
+//void netdev_close(int fd);
+int netdev_read(int fd, uint64 dst, int n);
+int netdev_write(int fd, uint64 src, int n);
+void init_netdev();
+
+//echo_server.c
+void echo_server_init(void);
+//void echo_server(void);
+
+// socket.c
+void            sockinit(void);
+int             sockalloc(int, int, int, struct tcp_pcb*, struct proc*);
+void            sockclose(struct socket*);
+int             sockread(struct socket*, uint64, int);
+int             sockwrite(struct socket*, uint64, int);
+int             sockconnect(int, const struct sockaddr*, int);
+int             sockbind(int, const struct sockaddr*, int);
+int             socklisten(int, int);
+int             sockaccept(int, struct sockaddr*, int*);
+int             sockgethostbyname(const char*, struct sockaddr*);
+int             sockinetaddress(const char*, struct sockaddr*);
+
+
+//ethernetif.c
+err_t ethernetif_init(struct netif *netif);
 
 // bio.c
 void            binit(void);
@@ -26,6 +89,7 @@ void            consputc(int);
 int             exec(char*, char**);
 
 // file.c
+int             fdalloc_for_proc(struct file*, struct proc*);
 struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
@@ -53,6 +117,7 @@ int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
 void            itrunc(struct inode*);
+uint64 create_symlink(const char *target, const char *link);
 
 // ramdisk.c
 void            ramdiskinit(void);
@@ -63,6 +128,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void *kalloc_aligned(int alignment);
+
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -95,6 +162,7 @@ void            setkilled(struct proc*);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
+struct proc* allocproc_wrapper(void); //Wrapper for allocproc
 void            procinit(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
@@ -106,6 +174,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -134,9 +203,9 @@ int             strncmp(const char*, const char*, uint);
 char*           strncpy(char*, const char*, int);
 
 // syscall.c
-void            argint(int, int*);
+int            argint(int, int*);
 int             argstr(int, char*, int);
-void            argaddr(int, uint64 *);
+int            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
@@ -187,3 +256,5 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+

@@ -15,7 +15,11 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "socket.h"
+#include "memlayout.h"
 
+
+extern unsigned long r_mtime(void);
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -41,6 +45,20 @@ fdalloc(struct file *f)
 {
   int fd;
   struct proc *p = myproc();
+
+  for(fd = 0; fd < NOFILE; fd++){
+    if(p->ofile[fd] == 0){
+      p->ofile[fd] = f;
+      return fd;
+    }
+  }
+  return -1;
+}
+
+int
+fdalloc_for_proc(struct file *f, struct proc *p)
+{
+  int fd;
 
   for(fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd] == 0){
@@ -241,22 +259,99 @@ bad:
   end_op();
   return -1;
 }
+static struct inode*
+create(char *path, short type, short major, short minor)
+{
+    struct inode *ip, *dp;
+    char name[DIRSIZ];
+    //printf("[CREATE] Start\n");
 
+    // Find the parent directory of the file being created
+    if ((dp = nameiparent(path, name)) == 0) {
+        //printf("[CREATE] Failed to find parent directory\n");
+        return 0;
+    }
+
+    ilock(dp);
+    //printf("[CREATE] Before Directory Lookup\n");
+
+    // Look up the file in the directory, but do not resolve symlinks
+    if ((ip = dirlookup(dp, name, 0)) != 0) {
+        ilock(ip);
+        //printf("[CREATE] File already exists\n");
+
+        // Allow re-use for regular files or symlinks
+        if (type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE || ip->type == T_SYMLINK)) {
+            iunlockput(dp);
+            return ip;  // Return the existing inode
+        }
+
+        // File exists but is incompatible
+        iunlockput(ip);
+        iunlockput(dp);
+        return 0;
+    }
+
+    // Allocate a new inode
+    if ((ip = ialloc(dp->dev, type)) == 0) {
+        //printf("[CREATE] Failed to allocate inode\n");
+        iunlockput(dp);
+        return 0;
+    }
+
+    ilock(ip);
+    ip->major = major;
+    ip->minor = minor;
+    ip->nlink = 1;
+    iupdate(ip);
+
+    // Handle directories: add "." and ".." entries
+    if (type == T_DIR) {
+        if (dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0) {
+            //printf("[CREATE] Failed to create . or .. entries\n");
+            goto fail;
+        }
+    }
+
+    // Link the new file to its parent directory
+    if (dirlink(dp, name, ip->inum) < 0) {
+        //printf("[CREATE] Failed to link new file to parent directory\n");
+        goto fail;
+    }
+
+    // Update parent directory for directories
+    if (type == T_DIR) {
+        dp->nlink++;
+        iupdate(dp);
+    }
+    //printf("[CREATE] Before lock release %p \n", dp);
+    iunlockput(dp);
+    //printf("[CREATE] File created successfully\n");
+    return ip;
+
+fail:
+    ip->nlink = 0;
+    iupdate(ip);
+    iunlockput(ip);
+    iunlockput(dp);
+    return 0;
+}
+/*
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
-
+  printf("[CREATE] Start\n");
   if((dp = nameiparent(path, name)) == 0)
     return 0;
 
   ilock(dp);
-
+  printf("[CREATE] Before Directory Lookup\n");
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE || ip->type == T_SYMLINK))
       return ip;
     iunlockput(ip);
     return 0;
@@ -300,7 +395,7 @@ create(char *path, short type, short major, short minor)
   iunlockput(dp);
   return 0;
 }
-
+*/
 uint64
 sys_open(void)
 {
@@ -369,7 +464,6 @@ sys_open(void)
 
   return fd;
 }
-
 uint64
 sys_mkdir(void)
 {
@@ -503,3 +597,210 @@ sys_pipe(void)
   }
   return 0;
 }
+uint64
+create_symlink(const char *target, const char *link) {
+    struct inode *ip;
+    //printf("[CREATESYMLINK] Start: Target=%s, Link=%s\n", target, link);
+
+    // Create the inode for the symlink
+    ip = create((char *)link, T_SYMLINK, 0, 0);
+    //printf("[CREATESYMLINK] Returned value of create: %p\n", ip);
+    if (ip == 0) {
+        //printf("[CREATESYMLINK] Failed to create inode for link: %s\n", link);
+        return -1;
+    }
+    //printf("[CREATESYMLINK] Before Lock %p \n",ip);
+    //ilock(ip);
+    //printf("[CREATESYMLINK] After Lock\n");
+    //printf("[CREATESYMLINK] Link inode locked successfully\n");
+
+    // Check if the target path fits in the inode
+    if (strlen(target) + 1 > MAXFILE) {  // Assuming MAXFILE is the max inode size
+        //printf("[CREATESYMLINK] Target path too long: %s\n", target);
+        //iunlockput(ip);
+        return -1;
+    }
+
+    // Write the target path into the symlink inode
+    if (writei(ip, 0, (uint64)target, 0, strlen(target) + 1) < strlen(target) + 1) {
+        //printf("[CREATESYMLINK] Failed to write target path to inode\n");
+        ip->nlink = 0;  // Mark inode as unused
+        iupdate(ip);
+        //iunlockput(ip);
+        return -1;
+    }
+
+    // Update and release the inode
+    iupdate(ip);
+    iunlockput(ip);
+
+    //printf("[CREATESYMLINK] Symlink created successfully: Target=%s, Link=%s\n", target, link);
+    return 0;
+}
+
+/*
+uint64
+create_symlink(const char *target, const char *link) {
+    struct inode *ip;
+    printf("[CREATESYMLINK] Start: Target=%s, Link=%s\n", target, link);
+
+    // Create the inode for the symlink
+    ip = create((char *)link, T_SYMLINK, 0, 0);
+    if (ip == 0) {
+        printf("[CREATEFUNC] Failed to create inode for link: %s\n", link);
+        return -1;
+    }
+
+    ilock(ip);
+    printf("[CREATEFUNC] Link inode created successfully\n");
+
+    // Write the target path into the symlink inode
+    if (writei(ip, 0, (uint64)(target), 0, strlen(target) + 1) < 0) {
+        printf("[CREATEFUNC] Failed to write target to link inode\n");
+        iunlockput(ip);
+        return -1;
+    }
+
+    // Update and release the inode
+    iupdate(ip);
+    iunlockput(ip);
+
+    printf("[CREATEFUNC] Symlink created successfully: Target=%s, Link=%s\n", target, link);
+    return 0;
+}*/
+uint64
+sys_socket(void)
+{
+  int domain, type, protocol;
+  if(argint(0, &domain) < 0 || argint(1, &type) < 0 || argint(2, &protocol) < 0)
+    return -1;
+  return sockalloc(domain, type, protocol, 0, 0);
+}
+
+uint64
+sys_connect(void)
+{
+  int sockfd;
+  uint64 user_addr;
+  struct sockaddr addr;
+  int addrlen;
+  
+  if (argint(0, &sockfd) < 0 || argaddr(1, &user_addr) < 0 || argint(2, &addrlen) < 0)
+    return -1;
+
+  // copy struct sockaddr from user space to kernel space
+  if (copyin(myproc()->pagetable, (char*)&addr, user_addr, sizeof(addr)) < 0)
+    return -1;
+
+  return sockconnect(sockfd, &addr, addrlen);
+}
+
+uint64
+sys_bind(void)
+{
+  int sockfd;
+  uint64 user_addr;
+  struct sockaddr addr;
+  int addrlen;
+  if (argint(0, &sockfd) < 0 || argaddr(1, &user_addr) < 0 || argint(2, &addrlen) < 0)
+    return -1;
+
+  // copy struct sockaddr from user space to kernel space
+  if (copyin(myproc()->pagetable, (char*)&addr, user_addr, sizeof(addr)) < 0)
+    return -1;
+  
+  return sockbind(sockfd,  &addr, addrlen);
+}
+
+uint64
+sys_listen(void)
+{
+  int sockfd, backlog;
+  if(argint(0, &sockfd) < 0 || argint(1, &backlog) < 0)
+    return -1;
+  return socklisten(sockfd, backlog);
+}
+
+uint64
+sys_accept(void)
+{
+  int sockfd;
+  uint64 user_addr;
+  uint64 user_addrlen;
+  
+  if(argint(0, &sockfd) < 0 || argaddr(1, &user_addr) < 0 || argaddr(2, &user_addrlen) < 0)
+    return -1;
+  
+  struct sockaddr addr;
+  int addrlen;
+  int new_sockfd;
+
+  if ((new_sockfd = sockaccept(sockfd, &addr, &addrlen)) < 0)
+    return -1;
+  
+  pagetable_t pagetable = myproc()->pagetable;
+  if (copyout(pagetable, user_addr, (char*)&addr, sizeof(addr)) < 0 || 
+      copyout(pagetable, user_addrlen, (char*)&addrlen, sizeof(addrlen)) < 0)
+    return -1;
+  
+  return new_sockfd;
+}
+
+uint64
+sys_gethostbyname(void)
+{
+  char name[MAX_DOMAIN_NAME];
+  uint64 addr;
+
+  if(argstr(0, name, MAX_DOMAIN_NAME) < 0 || argaddr(1, &addr) < 0)
+    return -1;
+
+  struct sockaddr res;
+
+  // copyin sockaddr from user space
+  if(copyin(myproc()->pagetable, (char*)&res, addr, sizeof(res)) < 0)
+    return -1;
+
+  int rc = sockgethostbyname(name, &res);
+
+  // copyout sockaddr to user space
+  if (rc == 0)
+    if (copyout(myproc()->pagetable, addr, (char*)&res, sizeof(res)) < 0)
+      return -1;
+
+  return rc;
+}
+
+uint64
+sys_inetaddress(void)
+{
+  char char_addr[MAX_ADDRESS_LENGTH];
+  uint64 addr;
+
+  if(argstr(0, char_addr, MAX_ADDRESS_LENGTH) < 0 || argaddr(1, &addr) < 0)
+    return -1;
+
+  struct sockaddr res;
+
+  // copyin sockaddr from user space
+  if(copyin(myproc()->pagetable, (char*)&res, addr, sizeof(res)) < 0)
+    return -1;
+
+  int rc = sockinetaddress(char_addr, &res);
+
+  // copyout sockaddr to user space
+  if (rc == 0)
+    if (copyout(myproc()->pagetable, addr, (char*)&res, sizeof(res)) < 0)
+      return -1;
+
+
+  return rc;
+}
+/*
+uint32
+sys_now(void)
+{
+  
+  return r_mtime() / 10000;
+}
+*/
