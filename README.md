@@ -2,17 +2,6 @@
 
 An extended variant of the xv6 educational operating system, enhanced with additional features and modules.
 
-## Table of Contents
-
-- [About](#about)  
-- [Features / Extensions](#features--extensions)  
-- [Directory Structure](#directory-structure)  
-- [Prerequisites](#prerequisites)  
-- [Building & Running](#building--running)  
-- [Usage / Examples](#usage--examples)  
-- [Contributing](#contributing)  
-- [License](#license)  
-
 ## About
 
 This repository is an extended/modified version of the **xv6** operating system (a teaching OS modeled after Unix Version 6). It includes custom enhancements, extra modules, networking (via lwIP), filesystem tools, and user programs beyond the stock xv6.
